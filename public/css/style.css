@@ -1,0 +1,172 @@
+/* ShareToNeighbour — Custom Styles */
+
+.item-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: none;
+}
+.item-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.12) !important;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #198754;
+    box-shadow: 0 0 0 0.2rem rgba(25,135,84,0.25);
+}
+
+.list-group-item-action:hover { background-color: #f0fdf4; }
+
+footer a:hover { color: #198754 !important; }
+
+@media (max-width: 768px) {
+    .hero-banner { padding: 2rem 1rem !important; }
+    .hero-banner h1 { font-size: 1.8rem; }
+}
+
+.dropdown .dropdown-menu {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 0.25rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.dropdown .dropdown-menu .dropdown-item {
+    color: #333;
+    padding: 0.5rem 1rem;
+}
+.dropdown .dropdown-menu .dropdown-item:hover {
+    background-color: #f0f0f0;
+    color: #198754;
+}
+.dropdown:hover .dropdown-menu {
+    display: block;
+}
+
+/* Premium navbar look */
+.fancy-nav {
+    background: linear-gradient(120deg, #198754 0%, #0f5132 55%, #0b3b25 100%);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.navbar .nav-link {
+    position: relative;
+    color: rgba(255, 255, 255, 0.9);
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.navbar .nav-link:hover,
+.navbar .nav-link:focus {
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.navbar .nav-link::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -4px;
+    width: 100%;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.5);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.25s ease;
+}
+
+.navbar .nav-link:hover::after,
+.navbar .nav-link:focus::after {
+    transform: scaleX(1);
+}
+
+/* Brand icon bubble */
+.brand-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    font-size: 1.2rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Avatar circle */
+.avatar-placeholder {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.16);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+}
+
+/* Floating badge */
+.badge-float {
+    font-size: 0.75rem;
+    padding: 0.35em 0.55em;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Dropdown tweaks */
+.dropdown-menu {
+    border: none;
+    border-radius: 14px;
+    padding: 0.5rem;
+}
+
+.dropdown-item {
+    border-radius: 10px;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.dropdown-item:hover {
+    background: rgba(25, 135, 84, 0.08);
+    transform: translateX(2px);
+}
+
+/* Mobile spacing fix */
+@media (max-width: 991.98px) {
+    .navbar .nav-link::after { display: none; }
+    .navbar .navbar-nav { gap: 0.35rem; }
+}
+
+/* Premium footer */
+.footer-premium {
+    background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.08), transparent 30%),
+                radial-gradient(circle at 80% 0%, rgba(255,255,255,0.07), transparent 25%),
+                linear-gradient(135deg, #0f5132 0%, #0b3b25 50%, #082619 100%);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.footer-link {
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.footer-link:hover,
+.footer-link:focus {
+    color: #fff;
+    transform: translateX(3px);
+}
+
+/* Reuse brand icon style with footer tweak */
+.footer-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.2);
+}
+
+/* Reduce text contrast on muted paragraphs for better legibility on dark bg */
+.footer-premium .text-muted {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
