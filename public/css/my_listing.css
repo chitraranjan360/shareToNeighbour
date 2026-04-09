@@ -1,0 +1,60 @@
+/* Listing card wrapper */
+.listing-card-wrap {
+    position: relative;
+    border-radius: 20px;
+}
+
+/* Fully clickable card */
+.listing-card-link {
+    display: block;
+    height: 100%;
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 14px 40px rgba(0,0,0,0.10);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.listing-card-link:hover,
+.listing-card-link:focus {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 52px rgba(0,0,0,0.14);
+}
+
+/* Image */
+.listing-card-img {
+    height: 170px;
+    overflow: hidden;
+}
+.listing-card-img img {
+    display: block;
+    transition: transform 0.25s ease;
+}
+.listing-card-link:hover .listing-card-img img {
+    transform: scale(1.03);
+}
+
+/* Options button positioning */
+.listing-actions {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 3;
+}
+
+/* Icon button */
+.icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(0,0,0,0.06);
+}
+
+/* Ensure dropdown forms look clean */
+.dropdown-menu form { margin: 0; }
+
+/* If you already added these earlier, keep only one definition */
+.object-fit-cover { object-fit: cover; }

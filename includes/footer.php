@@ -46,5 +46,74 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= SITE_URL ?>/js/app.js"></script>
+<script>
+(function () {
+  const CURRENT_USER_ID = <?= isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0 ?>;
+  if (!CURRENT_USER_ID) return;
+
+  const WS_HOST = window.location.hostname;
+  const ws = new WebSocket(`ws://${WS_HOST}:8080?user_id=${CURRENT_USER_ID}`);
+  window.appWS = ws; // optional global access
+
+  // simple browser notification (ask once)
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission().catch(()=>{});
+  }
+
+  function updatePresence(userId, isOnline) {
+    document.querySelectorAll(`[data-user-id="${userId}"] .presence-dot`).forEach(dot => {
+      dot.classList.toggle('presence-online', !!isOnline);
+      dot.classList.toggle('presence-offline', !isOnline);
+    });
+    document.querySelectorAll(`[data-user-status-id="${userId}"]`).forEach(el => {
+      el.textContent = isOnline ? 'Online' : 'Offline';
+    });
+  }
+
+  function bumpBell() {
+    const b = document.getElementById('globalMessageBadge');
+    if (!b) return;
+    const n = parseInt(b.textContent || '0', 10) + 1;
+    b.textContent = String(n);
+    b.classList.remove('d-none');
+  }
+
+  function showToast(text) {
+    // very simple toast
+    let t = document.getElementById('msgToast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'msgToast';
+      t.style.cssText = 'position:fixed;right:16px;bottom:16px;background:#111;color:#fff;padding:10px 14px;border-radius:10px;z-index:9999;';
+      document.body.appendChild(t);
+    }
+    t.textContent = text;
+    t.style.display = 'block';
+    setTimeout(()=> t.style.display='none', 2500);
+  }
+
+  ws.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+
+    if (data.type === 'presence') {
+      updatePresence(Number(data.user_id), Number(data.is_online) === 1);
+      return;
+    }
+
+    if (data.type === 'new_message' && Number(data.to) === CURRENT_USER_ID) {
+      bumpBell();
+      showToast('New message received');
+
+      // Browser push-like popup
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("ShareToNeighbour", { body: data.body || "You have a new message" });
+      }
+
+      // if chat thread page is open, trigger page handler
+      window.dispatchEvent(new CustomEvent('app:new-message', { detail: data }));
+    }
+  };
+})();
+</script>
 </body>
 </html>

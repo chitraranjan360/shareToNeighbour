@@ -34,48 +34,59 @@ if ((int)$item['user_id'] !== $ownerId) {
     redirect(SITE_URL . '/item.php?id=' . $itemId);
 }
 
+/**
+ * ✅ LOCK RULE:
+ * Once status is TAKEN, it becomes final and cannot be changed again.
+ */
+if (($item['status'] ?? '') === 'taken') {
+    setFlash('error', 'This item is already marked as TAKEN and cannot be changed again.');
+    redirect(SITE_URL . '/item.php?id=' . $itemId);
+    ?> 
+    <button></button>
+    <?php
+}
+
 $conn->begin_transaction();
 
 try {
     // If owner sets to AVAILABLE: decline accepted requests (so system is consistent)
-   if ($newStatus === 'available') {
+    if ($newStatus === 'available') {
 
-    // Decline all pending/accepted requests because item is reopened
-    $stmt = $conn->prepare("
-        UPDATE requests
-        SET status = 'declined'
-        WHERE item_id = ? AND owner_id = ? AND status IN ('pending','accepted')
-    ");
-    $stmt->bind_param('ii', $itemId, $ownerId);
-    $stmt->execute();
-    $stmt->close();
+        // Decline all pending/accepted requests because item is reopened
+        $stmt = $conn->prepare("
+            UPDATE requests
+            SET status = 'declined'
+            WHERE item_id = ? AND owner_id = ? AND status IN ('pending','accepted')
+        ");
+        $stmt->bind_param('ii', $itemId, $ownerId);
+        $stmt->execute();
+        $stmt->close();
 
-    // Optional (recommended): notify requesters that item is available again
-    // Notify all affected requesters
-$stmt = $conn->prepare("
-    SELECT requester_id
-    FROM requests
-    WHERE item_id = ? AND owner_id = ? AND status = 'declined'
-");
-$stmt->bind_param('ii', $itemId, $ownerId);
-$stmt->execute();
-$reqUsers = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
+        // Notify all affected requesters
+        $stmt = $conn->prepare("
+            SELECT requester_id
+            FROM requests
+            WHERE item_id = ? AND owner_id = ? AND status = 'declined'
+        ");
+        $stmt->bind_param('ii', $itemId, $ownerId);
+        $stmt->execute();
+        $reqUsers = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
 
-foreach ($reqUsers as $ru) {
-    $subject = 'Item reopened: ' . $item['title'];
-    $body    = "Hello,\n\nThe owner reopened the item \"" . $item['title'] . "\" and set it back to AVAILABLE.\n"
-             . "You may request it again if you still want it.";
+        foreach ($reqUsers as $ru) {
+            $subject = 'Item reopened: ' . $item['title'];
+            $body    = "Hello,\n\nThe owner reopened the item \"" . $item['title'] . "\" and set it back to AVAILABLE.\n"
+                     . "You may request it again if you still want it.";
 
-    $stmt = $conn->prepare("
-        INSERT INTO messages (sender_id, receiver_id, item_id, subject, body)
-        VALUES (?, ?, ?, ?, ?)
-    ");
-    $stmt->bind_param('iiiss', $ownerId, $ru['requester_id'], $itemId, $subject, $body);
-    $stmt->execute();
-    $stmt->close();
-}
-}
+            $stmt = $conn->prepare("
+                INSERT INTO messages (sender_id, receiver_id, item_id, subject, body)
+                VALUES (?, ?, ?, ?, ?)
+            ");
+            $stmt->bind_param('iiiss', $ownerId, $ru['requester_id'], $itemId, $subject, $body);
+            $stmt->execute();
+            $stmt->close();
+        }
+    }
 
     // Update item status
     $stmt = $conn->prepare("UPDATE furniture_items SET status = ? WHERE id = ?");

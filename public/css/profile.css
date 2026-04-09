@@ -1,0 +1,85 @@
+/* Profile hero */
+.profile-hero {
+    background: radial-gradient(circle at 12% 20%, rgba(255,255,255,0.12), transparent 35%),
+                radial-gradient(circle at 85% 0%, rgba(255,255,255,0.10), transparent 30%),
+                linear-gradient(135deg, #1f8f63 0%, #0f5132 55%, #0b3b25 100%);
+    border: 1px solid rgba(255,255,255,0.14);
+}
+
+.profile-avatar {
+    width: 74px;
+    height: 74px;
+    border-radius: 22px;
+    background: rgba(255,255,255,0.16);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2rem;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.18);
+}
+
+.profile-cta {
+    border-radius: 14px;
+}
+
+/* Reuse/ensure glass-card exists (if you already added it, keep one version) */
+.glass-card {
+    background: rgba(255,255,255,0.85);
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 18px;
+    box-shadow: 0 16px 50px rgba(0,0,0,0.12);
+    backdrop-filter: blur(10px);
+}
+
+/* Small icon bubble */
+.icon-bubble {
+    width: 38px;
+    height: 38px;
+    border-radius: 14px;
+    background: rgba(25,135,84,0.12);
+    color: #0f5132;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Stat tiles */
+.stat-tile {
+    background: rgba(255,255,255,0.9);
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 18px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    box-shadow: 0 14px 36px rgba(0,0,0,0.10);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.stat-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 44px rgba(0,0,0,0.14);
+}
+
+.stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.stat-number {
+    font-weight: 800;
+    font-size: 1.35rem;
+    line-height: 1.1;
+    color: #0b3b25;
+}
+.stat-label {
+    font-size: 0.9rem;
+    color: rgba(33,37,41,0.65);
+}
+
+/* Rating container (optional) */
+.rating-stars { line-height: 1; }

@@ -5,71 +5,185 @@ require_once __DIR__ . '/../includes/auth.php';
 requireUserLogin();
 
 $uid = currentUserId();
-$stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
-$stmt->bind_param('i', $uid); $stmt->execute();
-$user = $stmt->get_result()->fetch_assoc(); $stmt->close();
 
-$stmt = $conn->prepare("SELECT * FROM furniture_items WHERE user_id = ? ORDER BY created_at DESC");
-$stmt->bind_param('i', $uid); $stmt->execute();
-$myItems = $stmt->get_result()->fetch_all(MYSQLI_ASSOC); $stmt->close();
+// Fetch user's review stats (FIX: use $uid)
+$stmt = $conn->prepare("
+  SELECT 
+    COUNT(*) AS review_count,
+    AVG(rating) AS avg_rating
+  FROM reviews
+  WHERE reviewee_id = ?
+");
+$stmt->bind_param('i', $uid);
+$stmt->execute();
+$ratingRow = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+
+$reviewCount = (int)($ratingRow['review_count'] ?? 0);
+$avgRating = $ratingRow['avg_rating'] !== null ? (float)$ratingRow['avg_rating'] : null;
+
+// Fetch user info
+$stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
+$stmt->bind_param('i', $uid);
+$stmt->execute();
+$user = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+
+// Fetch user's listings stats
+$stmt = $conn->prepare("SELECT status FROM furniture_items WHERE user_id = ?");
+$stmt->bind_param('i', $uid);
+$stmt->execute();
+$rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
+
+$totalListings = count($rows);
+$availableCount = count(array_filter($rows, fn($i) => ($i['status'] ?? '') === 'available'));
+$requestedCount = count(array_filter($rows, fn($i) => ($i['status'] ?? '') === 'requested'));
+$takenCount = count(array_filter($rows, fn($i) => ($i['status'] ?? '') === 'taken'));
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
+<link rel="stylesheet" href="css/profile.css">
+<section class="profile-hero text-light rounded-4 p-4 p-md-5 mb-4 shadow-sm">
+  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+    <div class="d-flex align-items-center gap-3">
+      <div class="profile-avatar">
+        <i class="bi bi-person-circle"></i>
+      </div>
+      <div>
+        <p class="text-uppercase small fw-semibold text-white-50 mb-1">My Profile</p>
+        <h1 class="h3 mb-1"><?= h($user['full_name']) ?></h1>
+        <div class="text-white-75 d-flex flex-wrap gap-3 small">
+          <span><i class="bi bi-at"></i> <?= h($user['username']) ?></span>
+          <span><i class="bi bi-calendar3"></i> Joined <?= date('M j, Y', strtotime($user['created_at'])) ?></span>
+          <?php if (!empty($user['address'])): ?>
+            <span><i class="bi bi-geo-alt"></i> <?= h($user['address']) ?></span>
+          <?php endif; ?>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex flex-column flex-sm-row gap-2">
+      <a href="<?= SITE_URL ?>/edit_profile.php" class="btn btn-light btn-lg profile-cta">
+        <i class="bi bi-pencil-square"></i> Edit Profile
+      </a>
+      <a href="<?= SITE_URL ?>/upload.php" class="btn btn-success btn-lg profile-cta">
+        <i class="bi bi-plus-circle"></i> Share Item
+      </a>
+    </div>
+  </div>
+</section>
 
 <div class="row g-4">
-    <div class="col-md-4">
-        <div class="card shadow-sm text-center">
-            <div class="card-body p-4">
-                <div class="display-1 text-success mb-3"><i class="bi bi-person-circle"></i></div>
-                <h4><?= h($user['full_name']) ?></h4>
-                <p class="text-muted">@<?= h($user['username']) ?></p>
-                <p class="text-muted small"><i class="bi bi-envelope"></i> <?= h($user['email']) ?></p>
-                <?php if ($user['address']): ?>
-                <p class="text-muted small"><i class="bi bi-geo-alt"></i> <?= h($user['address']) ?></p>
-                <?php endif; ?>
-                <p class="text-muted small"><i class="bi bi-calendar"></i> Joined <?= date('M j, Y', strtotime($user['created_at'])) ?></p>
-            </div>
+  <div class="col-lg-4">
+    <div class="glass-card p-4 h-100">
+      <h5 class="mb-3 d-flex align-items-center gap-2">
+        <span class="icon-bubble"><i class="bi bi-shield-check"></i></span>
+        Account
+      </h5>
+
+      <div class="profile-info">
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-opacity-10">
+          <div class="text-muted small">Email</div>
+          <div class="fw-semibold"><?= h($user['email']) ?></div>
         </div>
-        <div class="card shadow-sm mt-3">
-            <div class="card-body">
-                <h6><i class="bi bi-bar-chart"></i> Stats</h6>
-                <ul class="list-unstyled mb-0">
-                    <li><span class="badge bg-primary"><?= count($myItems) ?></span> Total listings</li>
-                    <li><span class="badge bg-success"><?= count(array_filter($myItems, fn($i)=>$i['status']==='available')) ?></span> Available</li>
-                </ul>
-            </div>
+
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-opacity-10">
+          <div class="text-muted small">Username</div>
+          <div class="fw-semibold">@<?= h($user['username']) ?></div>
         </div>
-    </div>
-    <div class="col-md-8">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3><i class="bi bi-grid"></i> My Listings</h3>
-            <a href="<?= SITE_URL ?>/upload.php" class="btn btn-success btn-sm"><i class="bi bi-plus-circle"></i> New</a>
-        </div>
-        <?php if (empty($myItems)): ?>
-            <div class="text-center py-5 text-muted">
-                <i class="bi bi-box-seam display-1"></i>
-                <p class="mt-3">No listings yet.</p>
-                <a href="<?= SITE_URL ?>/upload.php" class="btn btn-outline-success">Share Now</a>
-            </div>
-        <?php else: ?>
-            <div class="row g-3">
-            <?php foreach ($myItems as $item): ?>
-                <div class="col-md-6">
-                    <div class="card h-100 shadow-sm">
-                        <img src="<?= UPLOAD_URL . '/' . h($item['photo'] ?: 'placeholder.jpg') ?>" class="card-img-top" style="height:160px;object-fit:cover;">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <h6><?= h($item['title']) ?></h6>
-                                <span class="badge bg-<?= $item['status']==='available'?'success':'warning' ?>"><?= ucfirst($item['status']) ?></span>
-                            </div>
-                            <a href="<?= SITE_URL ?>/item.php?id=<?= $item['id'] ?>" class="btn btn-sm btn-outline-primary">View</a>
-                        </div>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-            </div>
+
+        <?php if (!empty($user['address'])): ?>
+          <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-opacity-10">
+            <div class="text-muted small">Address</div>
+            <div class="fw-semibold text-end"><?= h($user['address']) ?></div>
+          </div>
         <?php endif; ?>
+
+        <div class="d-flex justify-content-between align-items-center py-2">
+          <div class="text-muted small">Member since</div>
+          <div class="fw-semibold"><?= date('M j, Y', strtotime($user['created_at'])) ?></div>
+        </div>
+      </div>
+
+      <hr class="opacity-25 my-3">
+
+      <h6 class="mb-2 text-muted text-uppercase small">Reputation</h6>
+      <?php if ($reviewCount > 0): ?>
+        <div class="d-flex align-items-center gap-2">
+          <div class="rating-stars"><?= renderStars($avgRating) ?></div>
+          <div class="text-muted small">
+            <span class="fw-semibold text-dark"><?= number_format($avgRating, 1) ?></span> / 5
+            <span class="mx-1">•</span>
+            <?= (int)$reviewCount ?> reviews
+          </div>
+        </div>
+      <?php else: ?>
+        <div class="text-muted small">No reviews yet</div>
+      <?php endif; ?>
     </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="row g-4">
+      <div class="col-md-6 col-xl-3">
+        <div class="stat-tile">
+          <div class="stat-icon bg-primary-subtle text-primary"><i class="bi bi-grid"></i></div>
+          <div>
+            <div class="stat-number"><?= (int)$totalListings ?></div>
+            <div class="stat-label">Total Listings</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-xl-3">
+        <div class="stat-tile">
+          <div class="stat-icon bg-success-subtle text-success"><i class="bi bi-check2-circle"></i></div>
+          <div>
+            <div class="stat-number"><?= (int)$availableCount ?></div>
+            <div class="stat-label">Available</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-xl-3">
+        <div class="stat-tile">
+          <div class="stat-icon bg-warning-subtle text-warning"><i class="bi bi-hourglass-split"></i></div>
+          <div>
+            <div class="stat-number"><?= (int)$requestedCount ?></div>
+            <div class="stat-label">Requested</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-xl-3">
+        <div class="stat-tile">
+          <div class="stat-icon bg-dark-subtle text-dark"><i class="bi bi-box-seam"></i></div>
+          <div>
+            <div class="stat-number"><?= (int)$takenCount ?></div>
+            <div class="stat-label">Taken</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card p-4 mt-4">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <h5 class="mb-1"><i class="bi bi-lightning-charge text-success"></i> Quick Actions</h5>
+          <div class="text-muted small">Manage your account and your listings faster.</div>
+        </div>
+        <div class="d-flex gap-2">
+          <a href="<?= SITE_URL ?>/browse.php" class="btn btn-outline-success">
+            <i class="bi bi-search"></i> Browse
+          </a>
+          <a href="<?= SITE_URL ?>/messages.php" class="btn btn-outline-primary">
+            <i class="bi bi-chat-dots"></i> Messages
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

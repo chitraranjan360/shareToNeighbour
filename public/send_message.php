@@ -2,9 +2,9 @@
 $pageTitle = 'Send Message — ShareToNeighbour';
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/mailer.php';   // ✅ Step 6: email support
+require_once __DIR__ . '/../includes/mailer.php';
 
-requireUserLogin(); // ★ must be logged in to chat
+requireUserLogin();
 
 $toUserId = (int)($_GET['to'] ?? $_POST['receiver_id'] ?? 0);
 $itemId   = (int)($_GET['item'] ?? $_POST['item_id'] ?? 0);
@@ -49,8 +49,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bind_param('iiiss', $uid, $toUserId, $iParam, $subject, $body);
 
         if ($stmt->execute()) {
+            $messageId = (int)$stmt->insert_id;
 
-            // ✅ EMAIL ALERT to receiver
+            // queue realtime notify for next page load
+            $_SESSION['ws_notify'] = [
+                'to' => (int)$toUserId,
+                'from' => (int)$uid,
+                'message_id' => $messageId,
+                'subject' => $subject,
+                'body' => $body,
+                'created_at' => date('Y-m-d H:i:s')
+            ];
+
+            // email alert
             $senderInfo = getUserInfo($conn, $uid);
             $receiverInfo = getUserInfo($conn, $toUserId);
 
@@ -65,13 +76,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     . SITE_URL . "/messages.php?tab=inbox\n\n"
                     . "- ShareToNeighbour";
 
-                // sends only if receiver has email_notifications = 1
                 sendEmailToUser($conn, $toUserId, $emailSubject, $emailBody);
             }
 
             setFlash('success', 'Message sent to ' . $recipient['username'] . '!');
             redirect(SITE_URL . '/messages.php?tab=sent');
-
         } else {
             $errors[] = 'Send failed.';
         }
@@ -113,7 +122,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <div class="mb-3">
                         <label class="form-label">Subject</label>
                         <input type="text" class="form-control" name="subject"
-                               value="<?= h($subject ?: ($itemTitle ? 'Re: '.$itemTitle : '')) ?>" required>
+                               value="<?= h($subject ?: ($itemTitle ? 'Re: '.$itemTitle : 'Chat Message')) ?>" readonly>
                     </div>
 
                     <div class="mb-3">

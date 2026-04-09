@@ -8,6 +8,7 @@ $badgeTotal   = $unreadCount + $requestCount;
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -17,6 +18,7 @@ $badgeTotal   = $unreadCount + $requestCount;
     <link rel="stylesheet" href="../public/css/style.css">
     <link rel="stylesheet" href="../public/css/index.css">
 </head>
+
 <body class="bg-light">
     <nav class="navbar navbar-expand-lg navbar-dark shadow-sm fancy-nav sticky-top">
         <div class="container">
@@ -49,12 +51,24 @@ $badgeTotal   = $unreadCount + $requestCount;
 
                 <ul class="navbar-nav align-items-lg-center">
                     <?php if (isUserLoggedIn()): ?>
-                        <li class="nav-item me-lg-2 position-relative">
+
+                        <!-- Bell Icon -->
+                        <li class="nav-item me-lg-2">
+                            <a class="nav-link position-relative d-inline-flex align-items-center"
+                               href="<?= SITE_URL ?>/messages.php"
+                               title="Notifications">
+                                <i class="bi bi-bell fs-5"></i>
+                                <span id="globalMessageBadge"
+                                      class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger <?= $badgeTotal > 0 ? '' : 'd-none' ?>">
+                                    <?= (int)$badgeTotal ?>
+                                </span>
+                            </a>
+                        </li>
+
+                        <!-- Messages text link (optional keep) -->
+                        <li class="nav-item me-lg-2">
                             <a class="nav-link" href="<?= SITE_URL ?>/messages.php">
                                 <i class="bi bi-chat-dots me-1"></i>Messages
-                                <?php if ($badgeTotal > 0): ?>
-                                    <span class="badge rounded-pill bg-danger shadow badge-float"><?= $badgeTotal ?></span>
-                                <?php endif; ?>
                             </a>
                         </li>
 
@@ -68,6 +82,7 @@ $badgeTotal   = $unreadCount + $requestCount;
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                 <li><a class="dropdown-item" href="<?= SITE_URL ?>/profile.php"><i class="bi bi-person-badge me-2"></i>Profile</a></li>
                                 <li><a class="dropdown-item" href="<?= SITE_URL ?>/messages.php"><i class="bi bi-envelope-open me-2"></i>Messages</a></li>
+                                <li><a class="dropdown-item" href="<?= SITE_URL ?>/my_listings.php"><i class="bi bi-grid"></i> My Listings</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item text-danger" href="<?= SITE_URL ?>/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
                             </ul>

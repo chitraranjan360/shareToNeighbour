@@ -1,16 +1,90 @@
 <?php
 $pageTitle = 'ShareToNeighbour — Share Furniture with Your Neighbours';
 require_once __DIR__ . '/../includes/header.php';
+// Check if user has pending review to write (after accepted request + taken item, but no review yet)
+$forceReview = false;
+$pendingReview = null;
 
-// Latest items
-$stmt = $conn->prepare("
-    SELECT fi.*, u.username
+if (isUserLoggedIn()) {
+    $uid = currentUserId();
+
+    $stmt = $conn->prepare("
+        SELECT
+            r.id AS request_id,
+            r.item_id,
+            fi.title,
+            fi.user_id AS owner_id
+        FROM requests r
+        JOIN furniture_items fi ON fi.id = r.item_id
+        LEFT JOIN reviews rev
+            ON rev.request_id = r.id AND rev.reviewer_id = ?
+        WHERE r.requester_id = ?
+          AND r.status = 'accepted'
+          AND fi.status = 'taken'
+          AND rev.id IS NULL
+        ORDER BY fi.taken_at DESC, fi.id DESC
+        LIMIT 1
+    ");
+    $stmt->bind_param('ii', $uid, $uid);
+    $stmt->execute();
+    $pendingReview = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    $forceReview = !empty($pendingReview);
+}
+
+// Load logged-in user location (if any)
+$userLat = $userLng = null;
+
+if (isUserLoggedIn()) {
+    $uid = currentUserId();
+    $stmt = $conn->prepare("SELECT latitude, longitude FROM users WHERE id = ? LIMIT 1");
+    $stmt->bind_param('i', $uid);
+    $stmt->execute();
+    $loc = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    $userLat = isset($loc['latitude']) ? (float)$loc['latitude'] : null;
+    $userLng = isset($loc['longitude']) ? (float)$loc['longitude'] : null;
+}
+
+// Latest items (homepage default: within 1 km when we can calculate distance)
+if ($userLat !== null && $userLng !== null) {
+    $uid = currentUserId();
+
+    $stmt = $conn->prepare("
+    SELECT
+        fi.*,
+        u.username,
+        (
+          6371 * acos(
+            cos(radians(?)) * cos(radians(u.latitude)) *
+            cos(radians(u.longitude) - radians(?)) +
+            sin(radians(?)) * sin(radians(u.latitude))
+          )
+        ) AS distance_km
     FROM furniture_items fi
     JOIN users u ON fi.user_id = u.id
     WHERE fi.status IN ('available','requested','taken')
+      AND fi.user_id <> ?
+      AND u.latitude IS NOT NULL AND u.longitude IS NOT NULL
+    HAVING distance_km <= 1
     ORDER BY fi.created_at DESC
     LIMIT 9
 ");
+    $stmt->bind_param('dddi', $userLat, $userLng, $userLat, $uid);
+} else {
+    // Fallback: not logged in OR no location saved yet
+    $stmt = $conn->prepare("
+        SELECT fi.*, u.username, NULL AS distance_km
+        FROM furniture_items fi
+        JOIN users u ON fi.user_id = u.id
+        WHERE fi.status IN ('available','requested','taken')
+        ORDER BY fi.created_at DESC
+        LIMIT 9
+    ");
+}
+
 $stmt->execute();
 $latest = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
@@ -69,26 +143,26 @@ $stmt->close();
 </section>
 
 <?php if (!isUserLoggedIn()): ?>
-<section class="mb-5">
-    <h2 class="text-center mb-4 text-dark"><i class="bi bi-arrow-repeat"></i> How It Works</h2>
-    <div class="row g-4 text-center">
-        <?php
-        $steps = [
-            ['icon' => 'person-plus', 'title' => 'Register & Login', 'desc' => 'Create your free account to start sharing.'],
-            ['icon' => 'camera', 'title' => 'Share or Browse', 'desc' => 'Upload furniture to give away or explore nearby finds.'],
-            ['icon' => 'chat-heart', 'title' => 'Chat & Collect', 'desc' => 'Message the owner, agree on pick-up, give it a second life.'],
-        ];
-        foreach ($steps as $step): ?>
-            <div class="col-md-4">
-                <div class="glass-card h-100 text-dark">
-                    <div class="display-5 text-success mb-3"><i class="bi bi-<?= $step['icon'] ?>"></i></div>
-                    <h5><?= $step['title'] ?></h5>
-                    <p class="text-muted mb-0"><?= $step['desc'] ?></p>
+    <section class="mb-5">
+        <h2 class="text-center mb-4 text-dark"><i class="bi bi-arrow-repeat"></i> How It Works</h2>
+        <div class="row g-4 text-center">
+            <?php
+            $steps = [
+                ['icon' => 'person-plus', 'title' => 'Register & Login', 'desc' => 'Create your free account to start sharing.'],
+                ['icon' => 'camera', 'title' => 'Share or Browse', 'desc' => 'Upload furniture to give away or explore nearby finds.'],
+                ['icon' => 'chat-heart', 'title' => 'Chat & Collect', 'desc' => 'Message the owner, agree on pick-up, give it a second life.'],
+            ];
+            foreach ($steps as $step): ?>
+                <div class="col-md-4">
+                    <div class="glass-card h-100 text-dark">
+                        <div class="display-5 text-success mb-3"><i class="bi bi-<?= $step['icon'] ?>"></i></div>
+                        <h5><?= $step['title'] ?></h5>
+                        <p class="text-muted mb-0"><?= $step['desc'] ?></p>
+                    </div>
                 </div>
-            </div>
-        <?php endforeach; ?>
-    </div>
-</section>
+            <?php endforeach; ?>
+        </div>
+    </section>
 <?php endif; ?>
 
 <section class="mb-5">
@@ -97,44 +171,72 @@ $stmt->close();
         <a href="<?= SITE_URL ?>/browse.php" class="btn btn-outline-success btn-sm">View All &rarr;</a>
     </div>
 
+    <?php if (isUserLoggedIn() && ($userLat === null || $userLng === null)): ?>
+        <div class="alert alert-warning">
+            To see items within <strong>1 km</strong> and accurate distance, please set your address in
+            <a href="<?= SITE_URL ?>/edit_profile.php" class="alert-link">Edit Profile</a>.
+        </div>
+    <?php endif; ?>
+
     <div class="row g-4">
         <?php if (empty($latest)): ?>
-            <p class="text-muted text-center">No furniture shared yet. Be the first!</p>
+            <p class="text-muted text-center">
+                <?php if ($userLat !== null && $userLng !== null): ?>
+                    No items found within 1 km yet. Try <a href="<?= SITE_URL ?>/browse.php">View All</a>.
+                <?php else: ?>
+                    No furniture shared yet. Be the first!
+                <?php endif; ?>
+            </p>
         <?php else: ?>
             <?php foreach ($latest as $item):
                 $status = $item['status'] ?? 'available';
                 $statusClass = match ($status) {
-                    'available' => 'pill-primary',
-                    'requested' => 'pill-warning',
-                    'taken'     => 'pill-dark',
-                    default     => 'pill-secondary'
+                    'available' => 'bg-primary',
+                    'requested' => 'bg-warning',
+                    'taken'     => 'bg-danger',
+                    default     => 'bg-secondary'
                 };
             ?>
-            <div class="col-md-4">
-                <a class="card h-100 shadow-sm item-card-link text-decoration-none" href="<?= SITE_URL ?>/item.php?id=<?= $item['id'] ?>">
-                    <div class="item-card-img rounded-4 overflow-hidden">
-                        <img src="<?= UPLOAD_URL . '/' . h($item['photo'] ?: 'placeholder.jpg') ?>"
-                             class="w-100 h-100 object-fit-cover" alt="<?= h($item['title']) ?>">
-                    </div>
-                    <div class="card-body d-flex flex-column">
-                        <div class="d-flex gap-2 mb-2 flex-wrap">
-                            <span class="pill-soft pill-success"><?= h(ucfirst($item['category'])) ?></span>
-                            <span class="pill-soft pill-secondary"><?= h(ucfirst(str_replace('_', ' ', $item['condition_level']))) ?></span>
-                            <span class="pill-soft <?= $statusClass ?>"><?= h(ucfirst($status)) ?></span>
+                <div class="col-md-4">
+                    <a class="card h-100 shadow-sm item-card-link text-decoration-none" href="<?= SITE_URL ?>/item.php?id=<?= (int)$item['id'] ?>">
+                        <div class="item-card-img rounded-4 overflow-hidden">
+                            <img src="<?= UPLOAD_URL . '/' . h($item['photo'] ?: 'placeholder.jpg') ?>"
+                                class="w-100 h-100 object-fit-cover" alt="<?= h($item['title']) ?>">
                         </div>
-                        <h5 class="card-title text-dark mb-1"><?= h($item['title']) ?></h5>
-                        <p class="card-text text-muted small flex-grow-1 mb-2">
-                            <?= h(mb_strimwidth($item['description'], 0, 110, '…')) ?>
-                        </p>
-                        <div class="d-flex justify-content-between align-items-center text-muted small">
-                            <span><i class="bi bi-person"></i> <?= h($item['username']) ?></span>
-                            <span class="d-inline-flex align-items-center gap-1">
-                                <i class="bi bi-chevron-right"></i> View
-                            </span>
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex gap-2 mb-2 flex-wrap">
+                                <span class="badge bg-success"><?= h(ucfirst($item['category'])) ?></span>
+                                <span class="badge bg-secondary"><?= h(ucfirst(str_replace('_', ' ', $item['condition_level']))) ?></span>
+                                <span class="badge <?= $statusClass ?>"><?= h(ucfirst($status)) ?></span>
+
+                                <?php if ($item['distance_km'] !== null): ?>
+                                    <span class="badge bg-primary">
+                                        <i class="bi bi-geo-alt"></i>
+                                        <?php
+                                        $km = (float)$item['distance_km'];
+                                        if ($km < 1) {
+                                            echo (int)round($km * 1000) . " m";
+                                        } else {
+                                            echo number_format($km, 1) . " km";
+                                        }
+                                        ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+
+                            <h5 class="card-title text-dark mb-1"><?= h($item['title']) ?></h5>
+                            <p class="card-text text-muted small flex-grow-1 mb-2">
+                                <?= h(mb_strimwidth($item['description'], 0, 110, '…')) ?>
+                            </p>
+                            <div class="d-flex justify-content-between align-items-center text-muted small">
+                                <span><i class="bi bi-person"></i> <?= h($item['username']) ?></span>
+                                <span class="d-inline-flex align-items-center gap-1">
+                                    <i class="bi bi-chevron-right"></i> View
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                </a>
-            </div>
+                    </a>
+                </div>
             <?php endforeach; ?>
         <?php endif; ?>
     </div>
@@ -157,5 +259,60 @@ $stmt->close();
         </div>
     </div>
 </section>
+<!-- Force review modal (if needed) -->
+<?php if ($forceReview && $pendingReview): ?>
+    <div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <form method="POST" action="<?= SITE_URL ?>/submit_review.php" class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title mb-0">Review required</h6>
+                </div>
+
+                <div class="modal-body">
+                    <p class="small mb-2">
+                        Please review your completed transaction:
+                    </p>
+                    <div class="small fw-semibold mb-3"><?= h($pendingReview['title']) ?></div>
+
+                    <input type="hidden" name="item_id" value="<?= (int)$pendingReview['item_id'] ?>">
+                    <input type="hidden" name="request_id" value="<?= (int)$pendingReview['request_id'] ?>">
+                    <input type="hidden" name="reviewee_id" value="<?= (int)$pendingReview['owner_id'] ?>">
+
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Rating *</label>
+                        <select class="form-select form-select-sm" name="rating" required>
+                            <option value="">Select…</option>
+                            <option value="5">5 - Excellent</option>
+                            <option value="4">4 - Good</option>
+                            <option value="3">3 - OK</option>
+                            <option value="2">2 - Bad</option>
+                            <option value="1">1 - Very bad</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label small mb-1">Comment (optional)</label>
+                        <textarea class="form-control form-control-sm" name="comment" rows="2" maxlength="500"></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer py-2">
+                    <button type="submit" class="btn btn-success btn-sm w-100">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const modalEl = document.getElementById('reviewModal');
+            const modal = new bootstrap.Modal(modalEl, {
+                backdrop: 'static',
+                keyboard: false
+            });
+            modal.show();
+        });
+    </script>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

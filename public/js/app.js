@@ -26,3 +26,5 @@ document.addEventListener('DOMContentLoaded', function () {
         setTimeout(() => { bootstrap.Alert.getOrCreateInstance(a).close(); }, 5000);
     });
 });
+
+

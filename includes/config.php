@@ -104,3 +104,49 @@ function getUserInfo(mysqli $conn, int $userId): ?array {
         'email_notifications' => (int)($row['email_notifications'] ?? 1),
     ];
 }
+
+// Checks if given lat/lng is within Denmark using OpenStreetMap Nominatim API 
+function isLatLngInDenmark(float $lat, float $lng): bool
+{
+    $url = "https://nominatim.openstreetmap.org/reverse?format=json&lat=" . urlencode((string)$lat) . "&lon=" . urlencode((string)$lng) . "&zoom=18&addressdetails=1";
+
+    $opts = [
+        "http" => [
+            "method" => "GET",
+            "header" => "User-Agent: ShareToNeighbour/1.0\r\n"
+        ]
+    ];
+    $context = stream_context_create($opts);
+    $json = @file_get_contents($url, false, $context);
+    if ($json === false) return false;
+
+    $data = json_decode($json, true);
+    $cc = strtolower($data['address']['country_code'] ?? '');
+
+    return $cc === 'dk';
+}
+
+function renderStars($avg) {
+    if ($avg === null) return '';
+    $full = (int)floor($avg);
+    $half = ($avg - $full) >= 0.5 ? 1 : 0;
+    $empty = 5 - $full - $half;
+
+    $html = '';
+    for ($i=0; $i<$full; $i++) $html .= '<i class="bi bi-star-fill text-warning"></i>';
+    if ($half) $html .= '<i class="bi bi-star-half text-warning"></i>';
+    for ($i=0; $i<$empty; $i++) $html .= '<i class="bi bi-star text-warning"></i>';
+    return $html;
+}
+
+// Haversine formula to calculate distance between two lat/lng points
+function haversineKm($lat1, $lon1, $lat2, $lon2) {
+    $R = 6371; // km
+    $dLat = deg2rad($lat2 - $lat1);
+    $dLon = deg2rad($lon2 - $lon1);
+    $a = sin($dLat/2) * sin($dLat/2) +
+         cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+         sin($dLon/2) * sin($dLon/2);
+    $c = 2 * atan2(sqrt($a), sqrt(1-$a));
+    return $R * $c;
+}
