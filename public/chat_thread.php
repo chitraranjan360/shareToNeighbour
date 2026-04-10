@@ -46,6 +46,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $messageId = (int)$stmt->insert_id;
             $stmt->close();
 
+            // ✅ Insert notification for receiver (bell)
+            $nType  = 'message';
+            $nRefId = $messageId;
+            $nTitle = 'New message';
+            $nBody  = mb_strimwidth($body, 0, 120, '...');
+
+            $nStmt = $conn->prepare("
+                INSERT INTO notifications (user_id, type, ref_id, title, body, is_seen)
+                VALUES (?, ?, ?, ?, ?, 0)
+            ");
+            if (!$nStmt) {
+                die('Notif prepare failed (chat_thread): ' . $conn->error);
+            }
+            $nStmt->bind_param('isiss', $otherUserId, $nType, $nRefId, $nTitle, $nBody);
+            if (!$nStmt->execute()) {
+                die('Notif execute failed (chat_thread): ' . $nStmt->error);
+            }
+            $nStmt->close();
+
             $_SESSION['ws_notify'] = [
                 'to' => $otherUserId,
                 'from' => $uid,

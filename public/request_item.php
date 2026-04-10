@@ -70,8 +70,32 @@ $ownerId = (int)$item['user_id'];
 $stmt = $conn->prepare("INSERT INTO requests (item_id, requester_id, owner_id, message) VALUES (?,?,?,?)");
 $stmt->bind_param('iiis', $itemId, $uid, $ownerId, $message);
 $stmt->execute();
+$requestId = (int)$stmt->insert_id; // NEW
 $stmt->close();
 
+/**
+ * 3.1) Insert notification row (NEW)
+ */
+$nType  = 'request';
+$nRefId = (int)$requestId;
+$nTitle = 'New item request';
+$nBody  = 'Someone requested your item: ' . $item['title'];
+
+if ((int)$ownerId > 0 && $nRefId > 0) {
+    $nStmt = $conn->prepare("
+        INSERT INTO notifications (user_id, type, ref_id, title, body, is_seen)
+        VALUES (?, ?, ?, ?, ?, 0)
+    ");
+    if ($nStmt) {
+        $nStmt->bind_param('isiss', $ownerId, $nType, $nRefId, $nTitle, $nBody);
+        if (!$nStmt->execute()) {
+            error_log('Notification insert failed (request_item.php): ' . $nStmt->error);
+        }
+        $nStmt->close();
+    } else {
+        error_log('Notification prepare failed (request_item.php): ' . $conn->error);
+    }
+}
 /**
  * 4) Send notification message to owner
  */

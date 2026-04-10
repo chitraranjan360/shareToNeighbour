@@ -106,6 +106,22 @@ try {
         $stmt->execute();
         $stmt->close();
 
+        // 4.1) Bell notification for requester
+        $nType  = 'request_accepted';
+        $nRefId = $requestId;
+        $nTitle = 'Your request was accepted';
+        $nBody  = 'Item: ' . $req['item_title'];
+
+        $nStmt = $conn->prepare("
+            INSERT INTO notifications (user_id, type, ref_id, title, body, is_seen)
+            VALUES (?, ?, ?, ?, ?, 0)
+            ON DUPLICATE KEY UPDATE id = id
+        ");
+        $requesterId = (int)$req['requester_id'];
+        $nStmt->bind_param('isiss', $requesterId, $nType, $nRefId, $nTitle, $nBody);
+        $nStmt->execute();
+        $nStmt->close();
+
         // ✅ Step 7: Email requester about acceptance
         $ownerInfo = getUserInfo($conn, $ownerId);
         if ($ownerInfo) {
@@ -142,6 +158,22 @@ try {
         $stmt->bind_param('iiiss', $ownerId, $req['requester_id'], $req['item_id'], $subject, $body);
         $stmt->execute();
         $stmt->close();
+
+        // 4.1) Bell notification for requester
+        $nType  = 'request_declined';
+        $nRefId = $requestId;
+        $nTitle = 'Your request was declined';
+        $nBody  = 'Item: ' . $req['item_title'];
+
+        $nStmt = $conn->prepare("
+            INSERT INTO notifications (user_id, type, ref_id, title, body, is_seen)
+            VALUES (?, ?, ?, ?, ?, 0)
+            ON DUPLICATE KEY UPDATE id = id
+        ");
+        $requesterId = (int)$req['requester_id'];
+        $nStmt->bind_param('isiss', $requesterId, $nType, $nRefId, $nTitle, $nBody);
+        $nStmt->execute();
+        $nStmt->close();
 
         // ✅ Step 7: Email requester about decline
         $ownerInfo = getUserInfo($conn, $ownerId);

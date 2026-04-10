@@ -115,5 +115,73 @@
   };
 })();
 </script>
+<!-- Optional: Add for a notifications popup -->
+<script>
+(function () {
+  const bell = document.getElementById('notifBell');
+  const list = document.getElementById('notifList');
+  const badge = document.getElementById('globalMessageBadge');
+  const markBtn = document.getElementById('markAllSeenBtn');
+  if (!bell || !list) return;
+
+  function esc(s='') {
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  async function loadNotifications() {
+    const res = await fetch('<?= SITE_URL ?>/api_notifications.php?action=list', {credentials:'same-origin'});
+    const json = await res.json();
+    if (!json.ok) {
+      list.innerHTML = `<div class="p-3 text-danger small">Failed to load.</div>`;
+      return;
+    }
+    const rows = json.data || [];
+    if (!rows.length) {
+      list.innerHTML = `<div class="p-3 text-muted small">No notifications</div>`;
+      return;
+    }
+
+    list.innerHTML = rows.map(n => `
+      <div class="px-3 py-2 border-bottom ${Number(n.is_seen)===0 ? 'bg-light' : ''}">
+        <div class="d-flex justify-content-between">
+          <div class="fw-semibold small">${esc(n.title)}</div>
+          <small class="text-muted">${new Date(n.created_at.replace(' ','T')).toLocaleString()}</small>
+        </div>
+        ${n.body ? `<div class="small text-muted mt-1">${esc(n.body)}</div>` : ``}
+      </div>
+    `).join('');
+  }
+
+  async function markSeen() {
+    await fetch('<?= SITE_URL ?>/api_notifications.php?action=mark_seen', {credentials:'same-origin'});
+    if (badge) {
+      badge.textContent = '0';
+      badge.classList.add('d-none');
+    }
+    // remove highlight
+    list.querySelectorAll('.bg-light').forEach(el => el.classList.remove('bg-light'));
+  }
+
+  bell.addEventListener('show.bs.dropdown', async () => {
+    await loadNotifications();
+    await markSeen(); // reset to 0 when opened
+  });
+
+  markBtn?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    await markSeen();
+  });
+
+  // optional realtime bump handler
+  window.bumpNotificationBadge = function() {
+    if (!badge) return;
+    let n = parseInt(badge.textContent || '0', 10);
+    n++;
+    badge.textContent = String(n);
+    badge.classList.remove('d-none');
+  };
+})();
+</script>
+
 </body>
 </html>

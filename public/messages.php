@@ -5,9 +5,13 @@ require_once __DIR__ . '/../includes/auth.php';
 requireUserLogin();
 
 $uid = currentUserId();
+$tab = $_GET['tab'] ?? 'chats';
+if (!in_array($tab, ['chats', 'requests'], true)) $tab = 'chats';
+
 $wsNotify = $_SESSION['ws_notify'] ?? null;
 unset($_SESSION['ws_notify']);
 
+// Chats: one row per conversation/user
 $stmt = $conn->prepare("
     SELECT
       u.id AS other_user_id,
@@ -51,8 +55,27 @@ $stmt->execute();
 $conversations = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
+// Requests tab (owner receives these)
+$stmt = $conn->prepare("
+    SELECT r.*, u.username AS requester_name, fi.title AS item_title
+    FROM requests r
+    JOIN users u ON r.requester_id = u.id
+    JOIN furniture_items fi ON r.item_id = fi.id
+    WHERE r.owner_id = ?
+    ORDER BY r.created_at DESC
+");
+$stmt->bind_param('i', $uid);
+$stmt->execute();
+$requests = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
+
 $totalUnread = 0;
 foreach ($conversations as $c) $totalUnread += (int)$c['unread_count'];
+
+$pendingRequests = 0;
+foreach ($requests as $r) {
+    if (($r['status'] ?? '') === 'pending') $pendingRequests++;
+}
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
@@ -111,61 +134,150 @@ require_once __DIR__ . '/../includes/header.php';
 </style>
 
 <div class="msg-shell">
-  <div class="msg-card">
-    <div class="msg-head d-flex justify-content-between align-items-center">
-      <h5 class="mb-0"><i class="bi bi-chat-left-text me-2"></i>Conversations</h5>
-      <span class="badge bg-success-subtle text-success border"><?= (int)$totalUnread ?> unread</span>
+
+  <ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+      <a class="nav-link <?= $tab==='chats'?'active':'' ?>" href="<?= SITE_URL ?>/messages.php?tab=chats">
+        <i class="bi bi-chat-left-text me-1"></i>Chats
+        <span class="badge bg-success ms-1"><?= (int)$totalUnread ?></span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link <?= $tab==='requests'?'active':'' ?>" href="<?= SITE_URL ?>/messages.php?tab=requests">
+        <i class="bi bi-hand-index me-1"></i>Requests
+        <span class="badge bg-warning text-dark ms-1"><?= (int)$pendingRequests ?></span>
+      </a>
+    </li>
+  </ul>
+
+  <?php if ($tab === 'chats'): ?>
+    <div class="msg-card">
+      <div class="msg-head d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-chat-left-text me-2"></i>Conversations</h5>
+        <span class="badge bg-success-subtle text-success border"><?= (int)$totalUnread ?> unread</span>
+      </div>
+
+      <div class="msg-list">
+        <?php if (empty($conversations)): ?>
+          <div class="empty">
+            <i class="bi bi-chat-square-text fs-1 d-block mb-2"></i>
+            No conversations yet.
+          </div>
+        <?php else: ?>
+          <?php foreach ($conversations as $c): ?>
+            <?php
+              $otherId = (int)$c['other_user_id'];
+              $name = trim((string)($c['other_full_name'] ?: $c['other_username']));
+              $initials = strtoupper(substr($name, 0, 1));
+              $isMine = ((int)$c['sender_id'] === $uid);
+              $preview = trim((string)$c['body']);
+              if ($preview === '') $preview = '(No text)';
+              $preview = mb_strimwidth($preview, 0, 95, '…');
+            ?>
+            <a href="<?= SITE_URL ?>/chat_thread.php?user=<?= $otherId ?>" class="item">
+              <div class="d-flex justify-content-between gap-3">
+                <div class="d-flex gap-3 align-items-start flex-grow-1">
+                  <div class="avatar">
+                    <?= h($initials) ?>
+                    <span id="user-dot-<?= $otherId ?>" class="dot <?= ((int)$c['other_online']===1?'on':'off') ?>"></span>
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="name"><?= h($name) ?></span>
+                      <small id="user-status-<?= $otherId ?>" class="text-muted">
+                        <?= ((int)$c['other_online']===1) ? 'Online' : 'Offline' ?>
+                      </small>
+                    </div>
+                    <div class="preview mt-1">
+                      <?= $isMine ? '<span class="text-muted">You: </span>' : '' ?><?= h($preview) ?>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="text-end">
+                  <div class="time"><?= date('M j, H:i', strtotime($c['created_at'])) ?></div>
+                  <?php if ((int)$c['unread_count'] > 0): ?>
+                    <span class="badge bg-danger badge-unread mt-2"><?= (int)$c['unread_count'] ?></span>
+                  <?php endif; ?>
+                </div>
+              </div>
+            </a>
+          <?php endforeach; ?>
+        <?php endif; ?>
+      </div>
     </div>
 
-    <div class="msg-list">
-      <?php if (empty($conversations)): ?>
-        <div class="empty">
-          <i class="bi bi-chat-square-text fs-1 d-block mb-2"></i>
-          No conversations yet.
-        </div>
-      <?php else: ?>
-        <?php foreach ($conversations as $c): ?>
-          <?php
-            $otherId = (int)$c['other_user_id'];
-            $name = trim((string)($c['other_full_name'] ?: $c['other_username']));
-            $initials = strtoupper(substr($name, 0, 1));
-            $isMine = ((int)$c['sender_id'] === $uid);
-            $preview = trim((string)$c['body']);
-            if ($preview === '') $preview = '(No text)';
-            $preview = mb_strimwidth($preview, 0, 95, '…');
-          ?>
-          <a href="<?= SITE_URL ?>/chat_thread.php?user=<?= $otherId ?>" class="item">
-            <div class="d-flex justify-content-between gap-3">
-              <div class="d-flex gap-3 align-items-start flex-grow-1">
-                <div class="avatar">
-                  <?= h($initials) ?>
-                  <span id="user-dot-<?= $otherId ?>" class="dot <?= ((int)$c['other_online']===1?'on':'off') ?>"></span>
+  <?php else: ?>
+    <div class="msg-card">
+      <div class="msg-head d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-hand-index me-2"></i>Item Requests</h5>
+        <span class="badge bg-warning text-dark"><?= (int)$pendingRequests ?> pending</span>
+      </div>
+
+      <div class="msg-list">
+        <?php if (empty($requests)): ?>
+          <div class="empty">
+            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+            No requests found.
+          </div>
+        <?php else: ?>
+          <?php foreach ($requests as $req): ?>
+            <div class="item">
+              <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                  <div class="fw-semibold">
+                    <i class="bi bi-person"></i> <?= h($req['requester_name']) ?>
+                    requested:
+                    <a href="<?= SITE_URL ?>/item.php?id=<?= (int)$req['item_id'] ?>"><?= h($req['item_title']) ?></a>
+                  </div>
+
+                  <?php if (!empty($req['message'])): ?>
+                    <div class="text-muted small mt-1">"<?= h($req['message']) ?>"</div>
+                  <?php endif; ?>
+
+                  <small class="text-muted d-block mt-1"><?= date('M j, Y H:i', strtotime($req['created_at'])) ?></small>
                 </div>
-                <div class="flex-grow-1">
-                  <div class="d-flex align-items-center gap-2">
-                    <span class="name"><?= h($name) ?></span>
-                    <small id="user-status-<?= $otherId ?>" class="text-muted">
-                      <?= ((int)$c['other_online']===1) ? 'Online' : 'Offline' ?>
-                    </small>
-                  </div>
-                  <div class="preview mt-1">
-                    <?= $isMine ? '<span class="text-muted">You: </span>' : '' ?><?= h($preview) ?>
-                  </div>
+
+                <div class="text-end">
+                  <span class="badge bg-<?= $req['status']==='pending' ? 'warning text-dark' : ($req['status']==='accepted' ? 'success' : 'secondary') ?>">
+                    <?= ucfirst(h($req['status'])) ?>
+                  </span>
                 </div>
               </div>
 
-              <div class="text-end">
-                <div class="time"><?= date('M j, H:i', strtotime($c['created_at'])) ?></div>
-                <?php if ((int)$c['unread_count'] > 0): ?>
-                  <span class="badge bg-danger badge-unread mt-2"><?= (int)$c['unread_count'] ?></span>
-                <?php endif; ?>
-              </div>
+              <?php if (($req['status'] ?? '') === 'pending'): ?>
+                <div class="mt-3 d-flex gap-2 flex-wrap">
+                  <form action="<?= SITE_URL ?>/respond_request.php" method="POST"
+                        onsubmit="return confirm('Accept this request?');">
+                    <input type="hidden" name="request_id" value="<?= (int)$req['id'] ?>">
+                    <input type="hidden" name="action" value="accept">
+                    <button type="submit" class="btn btn-sm btn-success">
+                      <i class="bi bi-check-circle"></i> Accept
+                    </button>
+                  </form>
+
+                  <form action="<?= SITE_URL ?>/respond_request.php" method="POST"
+                        onsubmit="return confirm('Decline this request?');">
+                    <input type="hidden" name="request_id" value="<?= (int)$req['id'] ?>">
+                    <input type="hidden" name="action" value="decline">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                      <i class="bi bi-x-circle"></i> Decline
+                    </button>
+                  </form>
+
+                  <a href="<?= SITE_URL ?>/chat_thread.php?user=<?= (int)$req['requester_id'] ?>"
+                     class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-chat-dots"></i> Message
+                  </a>
+                </div>
+              <?php endif; ?>
             </div>
-          </a>
-        <?php endforeach; ?>
-      <?php endif; ?>
+          <?php endforeach; ?>
+        <?php endif; ?>
+      </div>
     </div>
-  </div>
+  <?php endif; ?>
+
 </div>
 
 <script>
@@ -197,9 +309,16 @@ ws.onopen = () => {
 
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
+
   if (data.type === 'new_message' && Number(data.to) === Number(CURRENT_USER_ID)) {
     location.reload();
   }
+
+  if (data.type === 'new_request') {
+    // owner gets new request alert instantly
+    location.reload();
+  }
+
   if (data.type === 'presence') {
     setPresence(Number(data.user_id), Number(data.is_online) === 1);
   }

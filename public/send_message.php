@@ -16,8 +16,8 @@ $recipient = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$recipient) {
-    setFlash('error','User not found.');
-    redirect(SITE_URL.'/messages.php');
+    setFlash('error', 'User not found.');
+    redirect(SITE_URL . '/messages.php');
 }
 
 $itemTitle = '';
@@ -35,6 +35,7 @@ $subject = '';
 $body = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    die('Form submitted'); // Debug line to confirm form submission
     $subject = trim($_POST['subject'] ?? '');
     $body    = trim($_POST['body'] ?? '');
 
@@ -60,6 +61,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'body' => $body,
                 'created_at' => date('Y-m-d H:i:s')
             ];
+
+            // INSERT notification row (NEW)
+            $nType = 'message';
+            $nRefId = $messageId;
+            $nTitle = 'New message';
+            $nBody = mb_strimwidth($body, 0, 120, '...');
+            die('Reached notification block');
+            $nStmt = $conn->prepare("INSERT INTO notifications (user_id, type, ref_id, title, body, is_seen) VALUES (?, ?, ?, ?, ?, 0)");
+            if (!$nStmt) {
+                die('Notif prepare failed: ' . $conn->error);
+            }
+            $nStmt->bind_param('isiss', $targetUserId, $nType, $nRefId, $nTitle, $nBody);
+            if (!$nStmt->execute()) {
+                die('Notif execute failed: ' . $nStmt->error);
+            }
+            $nStmt->close();
 
             // email alert
             $senderInfo = getUserInfo($conn, $uid);
@@ -116,19 +133,19 @@ require_once __DIR__ . '/../includes/header.php';
                     <div class="mb-3">
                         <label class="form-label">To</label>
                         <input type="text" class="form-control" disabled
-                               value="<?= h($recipient['full_name']) ?> (@<?= h($recipient['username']) ?>)">
+                            value="<?= h($recipient['full_name']) ?> (@<?= h($recipient['username']) ?>)">
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Subject</label>
                         <input type="text" class="form-control" name="subject"
-                               value="<?= h($subject ?: ($itemTitle ? 'Re: '.$itemTitle : 'Chat Message')) ?>" readonly>
+                            value="<?= h($subject ?: ($itemTitle ? 'Re: ' . $itemTitle : 'Chat Message')) ?>" readonly>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Message</label>
                         <textarea class="form-control" name="body" rows="5" required
-                                  placeholder="Write your message…"><?= h($body) ?></textarea>
+                            placeholder="Write your message…"><?= h($body) ?></textarea>
                     </div>
 
                     <div class="d-flex gap-2">

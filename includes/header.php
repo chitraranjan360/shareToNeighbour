@@ -2,9 +2,15 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/auth.php';
 
-$unreadCount  = unreadMessageCount($conn);
-$requestCount = pendingRequestCount($conn);
-$badgeTotal   = $unreadCount + $requestCount;
+$badgeTotal = 0;
+if (isUserLoggedIn()) {
+    $uid = currentUserId();
+    $stmt = $conn->prepare("SELECT COUNT(*) AS c FROM notifications WHERE user_id=? AND is_seen=0");
+    $stmt->bind_param('i', $uid);
+    $stmt->execute();
+    $badgeTotal = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+    $stmt->close();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -52,10 +58,14 @@ $badgeTotal   = $unreadCount + $requestCount;
                 <ul class="navbar-nav align-items-lg-center">
                     <?php if (isUserLoggedIn()): ?>
 
-                        <!-- Bell Icon -->
-                        <li class="nav-item me-lg-2">
+                        <!-- Bell Icon + Dropdown Notifications -->
+                        <li class="nav-item dropdown me-lg-2">
                             <a class="nav-link position-relative d-inline-flex align-items-center"
-                               href="<?= SITE_URL ?>/messages.php"
+                               href="#"
+                               id="notifBell"
+                               role="button"
+                               data-bs-toggle="dropdown"
+                               aria-expanded="false"
                                title="Notifications">
                                 <i class="bi bi-bell fs-5"></i>
                                 <span id="globalMessageBadge"
@@ -63,6 +73,16 @@ $badgeTotal   = $unreadCount + $requestCount;
                                     <?= (int)$badgeTotal ?>
                                 </span>
                             </a>
+
+                            <div class="dropdown-menu dropdown-menu-end p-0 shadow" style="width:360px; max-height:420px; overflow:hidden;">
+                                <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                                    <strong>Notifications</strong>
+                                    <button id="markAllSeenBtn" class="btn btn-sm btn-link text-decoration-none p-0">Mark all seen</button>
+                                </div>
+                                <div id="notifList" style="max-height:360px; overflow:auto;">
+                                    <div class="p-3 text-muted small">Loading...</div>
+                                </div>
+                            </div>
                         </li>
 
                         <!-- Messages text link (optional keep) -->
@@ -114,3 +134,88 @@ $badgeTotal   = $unreadCount + $requestCount;
                 <?= h($e) ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         <?php endif; ?>
+
+<?php if (isUserLoggedIn()): ?>
+<script>
+(function () {
+    const bell = document.getElementById('notifBell');
+    const list = document.getElementById('notifList');
+    const badge = document.getElementById('globalMessageBadge');
+    const markBtn = document.getElementById('markAllSeenBtn');
+    if (!bell || !list) return;
+
+    function esc(s = '') {
+        return String(s).replace(/[&<>"']/g, m => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[m]));
+    }
+
+    function formatTime(v) {
+        try {
+            return new Date(String(v).replace(' ', 'T')).toLocaleString();
+        } catch(e) {
+            return v || '';
+        }
+    }
+
+    async function loadNotifications() {
+        try {
+            const res = await fetch('<?= SITE_URL ?>/api_notifications.php?action=list', { credentials: 'same-origin' });
+            const json = await res.json();
+
+            if (!json.ok) {
+                list.innerHTML = `<div class="p-3 text-danger small">Failed to load notifications.</div>`;
+                return;
+            }
+
+            const rows = json.data || [];
+            if (!rows.length) {
+                list.innerHTML = `<div class="p-3 text-muted small">No notifications.</div>`;
+                return;
+            }
+
+            list.innerHTML = rows.map(n => `
+                <div class="px-3 py-2 border-bottom ${Number(n.is_seen) === 0 ? 'bg-light' : ''}">
+                    <div class="d-flex justify-content-between gap-2">
+                        <div class="fw-semibold small">${esc(n.title || '')}</div>
+                        <small class="text-muted text-nowrap">${esc(formatTime(n.created_at || ''))}</small>
+                    </div>
+                    ${n.body ? `<div class="small text-muted mt-1">${esc(n.body)}</div>` : ``}
+                </div>
+            `).join('');
+        } catch (e) {
+            list.innerHTML = `<div class="p-3 text-danger small">Failed to load notifications.</div>`;
+        }
+    }
+
+    async function markSeen() {
+        try {
+            await fetch('<?= SITE_URL ?>/api_notifications.php?action=mark_seen', { credentials: 'same-origin' });
+        } catch (e) {}
+        if (badge) {
+            badge.textContent = '0';
+            badge.classList.add('d-none');
+        }
+        list.querySelectorAll('.bg-light').forEach(el => el.classList.remove('bg-light'));
+    }
+
+    bell.addEventListener('show.bs.dropdown', async () => {
+        await loadNotifications();
+        await markSeen();
+    });
+
+    markBtn?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await markSeen();
+    });
+
+    window.bumpNotificationBadge = function() {
+        if (!badge) return;
+        let n = parseInt(badge.textContent || '0', 10);
+        n++;
+        badge.textContent = String(n);
+        badge.classList.remove('d-none');
+    };
+})();
+</script>
+<?php endif; ?>
