@@ -15,20 +15,31 @@ if ($itemId <= 0) {
     redirect(SITE_URL . '/my_listings.php');
 }
 
-// Verify ownership
-$stmt = $conn->prepare("SELECT id FROM furniture_items WHERE id = ? AND user_id = ? LIMIT 1");
+// Verify ownership + get status
+$stmt = $conn->prepare("SELECT id, status FROM furniture_items WHERE id = ? AND user_id = ? LIMIT 1");
 $stmt->bind_param('ii', $itemId, $uid);
 $stmt->execute();
-$ok = $stmt->get_result()->num_rows > 0;
+$item = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
-if (!$ok) {
+if (!$item) {
     setFlash('error', 'Item not found or not allowed.');
     redirect(SITE_URL . '/my_listings.php');
 }
 
-// Delete item
-$stmt = $conn->prepare("DELETE FROM furniture_items WHERE id = ?");
+// If taken => soft delete (keeps reviews/history for admin)
+if ($item['status'] === 'taken') {
+    $stmt = $conn->prepare("UPDATE furniture_items SET is_deleted = 1, deleted_at = NOW() WHERE id = ? LIMIT 1");
+    $stmt->bind_param('i', $itemId);
+    $stmt->execute();
+    $stmt->close();
+
+    setFlash('success', 'Listing removed from your view.');
+    redirect(SITE_URL . '/my_listings.php');
+}
+
+// Otherwise => hard delete (optional; keeps your current behavior)
+$stmt = $conn->prepare("DELETE FROM furniture_items WHERE id = ? LIMIT 1");
 $stmt->bind_param('i', $itemId);
 $stmt->execute();
 $stmt->close();

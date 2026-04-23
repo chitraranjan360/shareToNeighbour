@@ -15,7 +15,6 @@ class ChatSocket implements MessageComponentInterface {
     public function __construct() {
         $this->clients = new \SplObjectStorage();
 
-        // Adjust DB credentials as needed
         $this->pdo = new PDO(
             "mysql:host=127.0.0.1;dbname=sharetoneighbour;charset=utf8mb4",
             "root",
@@ -29,7 +28,6 @@ class ChatSocket implements MessageComponentInterface {
 
         parse_str($conn->httpRequest->getUri()->getQuery(), $query);
         $userId = isset($query['user_id']) ? (int)$query['user_id'] : 0;
-
         $conn->user_id = $userId;
 
         if ($userId > 0) {
@@ -52,7 +50,6 @@ class ChatSocket implements MessageComponentInterface {
         if ($type === 'chat') {
             $to = (int)($data['to'] ?? 0);
 
-            // Forward instantly to online receiver(s)
             if ($to > 0 && isset($this->userConnections[$to])) {
                 $payload = json_encode([
                     'type' => 'new_message',
@@ -68,6 +65,25 @@ class ChatSocket implements MessageComponentInterface {
                     $clientConn->send($payload);
                 }
             }
+            return;
+        }
+
+        if ($type === 'read_receipt') {
+            $to = (int)($data['to'] ?? 0);
+
+            if ($to > 0 && isset($this->userConnections[$to])) {
+                $payload = json_encode([
+                    'type' => 'read_receipt',
+                    'from' => (int)($from->user_id ?? 0),
+                    'to' => $to,
+                    'created_at' => date('Y-m-d H:i:s')
+                ]);
+
+                foreach ($this->userConnections[$to] as $clientConn) {
+                    $clientConn->send($payload);
+                }
+            }
+            return;
         }
     }
 
@@ -111,8 +127,8 @@ class ChatSocket implements MessageComponentInterface {
 
 $server = IoServer::factory(
     new HttpServer(new WsServer(new ChatSocket())),
-    8080
+    8080, '0.0.0.0' // adjust to your WebSocket server host
 );
 
-echo "WebSocket server started at ws://127.0.0.1:8080\n";
+echo "WebSocket server started at ws://0.0.0.0:8080\n";
 $server->run();

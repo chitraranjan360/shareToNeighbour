@@ -57,19 +57,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 require_once __DIR__ . '/admin_header.php';
 ?>
 
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-2">
+    <div>
+        <h2 class="mb-1"><i class="bi bi-plus-square-fill text-warning me-2"></i>Add Furniture Item</h2>
+        <p class="text-body-secondary mb-0">Create a new listing on behalf of a selected user.</p>
+    </div>
+    <a href="<?= ADMIN_URL ?>/manage_items.php" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to items
+    </a>
+</div>
+
 <div class="row justify-content-center">
-    <div class="col-md-8 col-lg-7">
-        <div class="card shadow-sm">
-            <div class="card-header bg-warning"><h4 class="mb-0"><i class="bi bi-plus-square-fill"></i> Add Furniture Item</h4></div>
-            <div class="card-body p-4">
+    <div class="col-lg-9 col-xl-8">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-warning-subtle border-0 rounded-top-4 py-3">
+                <h5 class="mb-0"><i class="bi bi-box-seam me-2"></i>Listing Details</h5>
+            </div>
+            <div class="card-body p-4 p-md-5">
                 <?php if (!empty($errors)): ?>
-                <div class="alert alert-danger"><ul class="mb-0">
+                <div class="alert alert-danger border-0 shadow-sm"><ul class="mb-0">
                     <?php foreach ($errors as $e): ?><li><?= h($e) ?></li><?php endforeach; ?>
                 </ul></div>
                 <?php endif; ?>
 
                 <form method="POST" enctype="multipart/form-data" novalidate>
-                    <div class="mb-3 p-3 bg-light rounded border">
+                    <div class="mb-4 p-3 bg-light rounded-3 border">
                         <label class="form-label fw-bold"><i class="bi bi-person-badge"></i> Post as User</label>
                         <select class="form-select" name="user_id" required>
                             <option value="">— Select a local user —</option>
@@ -80,6 +92,7 @@ require_once __DIR__ . '/admin_header.php';
                             <?php endforeach; ?>
                         </select>
                     </div>
+
                     <div class="mb-3">
                         <label class="form-label">Title *</label>
                         <input type="text" class="form-control" name="title" value="<?= h($title) ?>" required>
@@ -100,10 +113,10 @@ require_once __DIR__ . '/admin_header.php';
                         <div class="col-md-6">
                             <label class="form-label">Condition</label>
                             <select class="form-select" name="condition_level">
-                                <option value="like_new">Like New</option>
-                                <option value="good" selected>Good</option>
-                                <option value="fair">Fair</option>
-                                <option value="needs_repair">Needs Repair</option>
+                                <option value="like_new" <?= $condition === 'like_new' ? 'selected' : '' ?>>Like New</option>
+                                <option value="good" <?= $condition === 'good' ? 'selected' : '' ?>>Good</option>
+                                <option value="fair" <?= $condition === 'fair' ? 'selected' : '' ?>>Fair</option>
+                                <option value="needs_repair" <?= $condition === 'needs_repair' ? 'selected' : '' ?>>Needs Repair</option>
                             </select>
                         </div>
                     </div>
@@ -115,9 +128,13 @@ require_once __DIR__ . '/admin_header.php';
                         <label class="form-label">Video Link <small class="text-muted">(optional)</small></label>
                         <input type="url" class="form-control" name="video_link" value="<?= h($video_link) ?>">
                     </div>
-                    <button type="submit" class="btn btn-warning w-100 btn-lg fw-bold">
+
+                    <div class="d-grid d-md-flex gap-2 justify-content-md-end mt-4">
+                        <a href="<?= ADMIN_URL ?>/manage_items.php" class="btn btn-outline-secondary px-4">Cancel</a>
+                        <button type="submit" class="btn btn-warning px-4 fw-semibold">
                         <i class="bi bi-cloud-upload"></i> Add Item
-                    </button>
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>

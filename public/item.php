@@ -23,7 +23,6 @@ $stmt->execute();
 $item = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
-
 if (!$item) {
     setFlash('error', 'Item not found.');
     redirect(SITE_URL . '/browse.php');
@@ -102,6 +101,36 @@ if (isUserLoggedIn() && !$isOwner) {
 }
 
 /**
+ * ✅ Direction section (clickable, exact coordinates from DB)
+ */
+// after you already fetched $meLat,$meLng and $ownerLat,$ownerLng
+$directionUrl = null;
+$directionEmbedUrl = null;
+$hasExactLocation = false;
+
+if (
+    is_numeric($meLat ?? null) && is_numeric($meLng ?? null) &&
+    is_numeric($ownerLat ?? null) && is_numeric($ownerLng ?? null)
+) {
+    $oLat = (string)$meLat;      // viewer saved coords (DB)
+    $oLng = (string)$meLng;
+    $dLat = (string)$ownerLat;   // owner saved coords (DB)
+    $dLng = (string)$ownerLng;
+
+    // Click opens exact route from saved->saved
+    $directionUrl = "https://www.google.com/maps/dir/?api=1"
+        . "&origin=" . rawurlencode($oLat . "," . $oLng)
+        . "&destination=" . rawurlencode($dLat . "," . $dLng)
+        . "&travelmode=driving";
+
+    // Embed without API key
+    $directionEmbedUrl = "https://www.google.com/maps?q="
+        . rawurlencode($dLat . "," . $dLng)
+        . "&z=16&output=embed";
+
+    $hasExactLocation = true;
+}
+/**
  * ✅ Owner review stats
  */
 $ownerId = (int)$item['user_id'];
@@ -133,14 +162,14 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="col-md-6">
         <?php if (!empty($images)): ?>
             <div id="itemGallery" class="carousel slide mb-3" data-bs-ride="carousel">
-                <div class="carousel-inner rounded shadow-sm overflow-hidden" style="max-height:500px;">
+                <div class="carousel-inner rounded shadow-sm overflow-hidden" style="max-height:400px;">
                     <?php foreach ($images as $idx => $img): ?>
-                        <div class="carousel-item <?= $idx === 0 ? 'active' : '' ?>">
+                        <div class="carousel-item  <?= $idx === 0 ? 'active' : '' ?>">
                             <a href="<?= UPLOAD_URL . '/' . h($img['filename']) ?>" target="_blank" title="Open image">
                                 <img src="<?= UPLOAD_URL . '/' . h($img['filename']) ?>"
                                     class="d-block w-100"
                                     alt="<?= h($item['title']) ?> image <?= $idx + 1 ?>"
-                                    style="height:500px;object-fit:cover;">
+                                    style="height:400px;object-fit:cover;">
                             </a>
                         </div>
                     <?php endforeach; ?>
@@ -159,7 +188,7 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
 
             <?php if (count($images) > 1): ?>
-                <div class="d-flex gap-2 flex-wrap">
+                <div class="d-inline-flex gap-2 flex-wrap">
                     <?php foreach ($images as $idx => $img): ?>
                         <button type="button"
                             class="p-0 border-0 bg-transparent"
@@ -182,18 +211,22 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 
     <div class="col-md-6">
+        
         <h2><?= h($item['title']) ?></h2>
         <div class="d-flex gap-2 mb-3">
             <span class="badge bg-success fs-6"><?= ucfirst($item['category']) ?></span>
             <span class="badge bg-secondary fs-6"><?= ucfirst(str_replace('_', ' ', $item['condition_level'])) ?></span>
             <span class="badge bg-<?= $item['status'] === 'available' ? 'primary' : 'warning' ?> fs-6"><?= ucfirst($item['status']) ?></span>
             <?php if ($distanceText): ?>
-            <span class="badge bg-secondary fs-6 bi bi-geo-alt"><?= h($distanceText) ?></span>
-        <?php endif; ?>
+                <span class="badge bg-secondary fs-6 bi bi-geo-alt"><?= h($distanceText) ?></span>
+            <?php endif; ?>
         </div>
 
         <p class="lead"><?= nl2br(h($item['description'])) ?></p>
         <hr>
+
+        <div class="row">
+        <div class="col-md-6">
 
         <p class="mb-1"><i class="bi bi-person-circle"></i> <strong><?= h($item['full_name']) ?></strong> (@<?= h($item['username']) ?>)</p>
 
@@ -205,10 +238,37 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
             </div>
         <?php else: ?>
-            <div class="text-muted small mb-2">No reviews yet</div>
+            <div class="text-muted small mb-2 p-2">No reviews yet</div>
         <?php endif; ?>
 
-        <p class="text-muted small"><i class="bi bi-clock"></i> Posted <?= date('M j, Y H:i', strtotime($item['created_at'])) ?></p>
+        <p class="text-muted small mb-2"><i class="bi bi-clock"></i> Posted <?= date('M j, Y H:i', strtotime($item['created_at'])) ?></p>
+
+         </div>
+
+        <div class="col-md-6 m-0">
+        <?php if ((isUserLoggedIn() && currentUserId() !== (int)$item['user_id']) && $hasExactLocation): ?>
+            
+            <a href="<?= h($directionUrl) ?>" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
+                <div class="card border-0 shadow-sm rounded-3 overflow-hidden p-2" title="Open directions in Google Maps">
+                    <div class="p-2 bg-light border-bottom d-flex justify-content-between align-items-center">
+                        <div class="fw-semibold text-dark">
+                            <i class="bi bi-sign-turn-right me-1"></i> Directions
+                        </div>
+                    </div>
+                    <iframe
+                        src="<?= h($directionEmbedUrl) ?>"
+                        width="100%"
+                        height="auto"
+                        style="border:0;pointer-events:none;"
+                        loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade"
+                        title="Pickup location map">
+                    </iframe>
+                </div>
+            </a>
+        <?php endif; ?>
+         </div>
+         </div>
         <hr>
 
         <?php if (isUserLoggedIn() && currentUserId() === (int)$item['user_id']): ?>
@@ -230,19 +290,23 @@ require_once __DIR__ . '/../includes/header.php';
 
                         <div class="col-sm-6 d-flex gap-2">
                             <?php if ($item['status'] === 'taken'): ?>
-                               <button type="submit" class="btn btn-primary w-100" disabled>No Longer Change Available</button>
+                                <button type="submit" class="btn btn-primary w-100" disabled>No Longer Change Available</button>
                             <?php else: ?>
-                            <button type="submit" class="btn btn-primary w-100"
-                                onclick="
-                                s = this.form.status.value;
-                                if (s === 'taken') {
-                                    return confirm('Mark as TAKEN? This will complete the transaction and you will NOT be able to change status again. Make Sure Hnadover is done.');
-                                } else  {
-                                    return confirm('Change item Status ? ');
-                                }
-                                ">
-                                <i class="bi bi-save"></i> Save
-                            </button>
+                                <button type="submit" class="btn btn-primary w-100"
+                                    onclick="
+                           const form = this.form;
+                           const status = form.status.value;
+ 
+                         if (status === 'taken') {
+                         return confirm('Marking this item as Taken means it is no longer available. Are you sure?');
+                         }
+
+                         else {
+                        return confirm('Are you sure, you want to chnange status? ');
+                         }                   
+                                             ">
+                              <i class="bi bi-save"></i> Save
+                                </button>
                             <?php endif; ?>
                         </div>
                     </form>
@@ -260,8 +324,6 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php else: ?>
                     <form action="<?= SITE_URL ?>/request_item.php" method="POST" class="mb-2">
                         <input type="hidden" name="item_id" value="<?= (int)$item['id'] ?>">
-                        <textarea name="message" class="form-control mb-2" rows="2"
-                            placeholder="Message to owner (optional)…"></textarea>
                         <button type="submit" class="btn btn-success btn-lg w-100">
                             <i class="bi bi-hand-index-thumb"></i> Request This Item
                         </button>

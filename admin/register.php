@@ -81,22 +81,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Admin Register — <?= h(SITE_NAME) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../public/css/admin.css">
 </head>
-<body class="bg-dark d-flex align-items-center min-vh-100">
+<body class="admin-auth-page d-flex align-items-center min-vh-100 py-4">
 
 <div class="container">
     <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-5">
-            <div class="card shadow-lg border-warning">
-                <div class="card-header bg-warning text-dark text-center py-3">
-                    <h4 class="mb-0"><i class="bi bi-shield-lock-fill"></i> Admin Registration</h4>
-                    <small>Maximum 5 admins allowed</small>
+        <div class="col-md-7 col-lg-6 col-xl-5">
+            <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+                <div class="card-header bg-warning-subtle text-dark text-center py-4 border-0">
+                    <h4 class="mb-1"><i class="bi bi-shield-lock-fill me-2"></i>Admin Registration</h4>
+                    <small class="text-body-secondary">Maximum 5 admins allowed</small>
                 </div>
 
                 <div class="card-body p-4">
 
                     <?php if (!empty($errors)): ?>
-                        <div class="alert alert-danger">
+                        <div class="alert alert-danger border-0 shadow-sm">
                             <ul class="mb-0">
                                 <?php foreach ($errors as $e): ?>
                                     <li><?= h($e) ?></li>
@@ -105,44 +106,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     <?php endif; ?>
 
-                    <div class="alert alert-info small">
+                    <div class="alert alert-info small border-0 shadow-sm">
                         Active admins: <strong><?= adminCount($conn) ?></strong> / 5
                     </div>
 
                     <form method="POST" novalidate>
                         <div class="mb-3">
                             <label class="form-label">Admin Registration Key</label>
-                            <input type="text" class="form-control" name="registration_key" value="<?= h($registration_key) ?>" required>
+                            <input type="text" class="form-control form-control-lg" name="registration_key" value="<?= h($registration_key) ?>" required>
                             <div class="form-text">Only approved admins should have this key.</div>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Admin Username</label>
-                            <input type="text" class="form-control" name="username" value="<?= h($username) ?>" required minlength="3">
+                            <input type="text" class="form-control form-control-lg" name="username" value="<?= h($username) ?>" required minlength="3">
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Full Name</label>
-                            <input type="text" class="form-control" name="full_name" value="<?= h($full_name) ?>" required>
+                            <input type="text" class="form-control form-control-lg" name="full_name" value="<?= h($full_name) ?>" required>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Password</label>
-                            <input type="password" class="form-control" name="password" required minlength="6">
+                            <input type="password" class="form-control form-control-lg" name="password" required minlength="6">
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Confirm Password</label>
-                            <input type="password" class="form-control" name="confirm_password" required>
+                            <input type="password" class="form-control form-control-lg" name="confirm_password" required>
                         </div>
 
-                        <button type="submit" class="btn btn-warning w-100 fw-bold">
+                        <button type="submit" class="btn btn-warning w-100 fw-semibold py-2">
                             <i class="bi bi-person-plus-fill"></i> Create Admin Account
                         </button>
                     </form>
 
-                    <hr>
-                    <p class="text-center small text-muted mb-0">
+                    <hr class="my-4">
+                    <p class="text-center small text-body-secondary mb-0">
                         Already an admin? <a href="<?= ADMIN_URL ?>/login.php" class="text-warning">Admin Login</a><br>
                         Back to site: <a href="<?= SITE_URL ?>/index.php" class="text-muted">Homepage</a>
                     </p>

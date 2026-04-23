@@ -31,8 +31,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $body = trim($_POST['body'] ?? '');
     $subject = 'Chat Message';
 
+    //validation for message count
     if ($body === '') {
         $errors[] = 'Message cannot be empty.';
+    } elseif (strlen($body) > 2000) {
+        $errors[] = 'Message is too long (max 2000 characters).';
     }
 
     if (empty($errors)) {
@@ -46,24 +49,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $messageId = (int)$stmt->insert_id;
             $stmt->close();
 
-            // ✅ Insert notification for receiver (bell)
-            $nType  = 'message';
-            $nRefId = $messageId;
-            $nTitle = 'New message';
-            $nBody  = mb_strimwidth($body, 0, 120, '...');
-
-            $nStmt = $conn->prepare("
-                INSERT INTO notifications (user_id, type, ref_id, title, body, is_seen)
-                VALUES (?, ?, ?, ?, ?, 0)
+            // Notify only if receiver is NOT active in this exact thread in last 30 seconds
+            $shouldNotify = true;
+            $presenceStmt = $conn->prepare("
+                SELECT 1
+                FROM user_chat_presence
+                WHERE user_id = ?
+                  AND with_user_id = ?
+                  AND updated_at >= (NOW() - INTERVAL 30 SECOND)
+                LIMIT 1
             ");
-            if (!$nStmt) {
-                die('Notif prepare failed (chat_thread): ' . $conn->error);
+            if ($presenceStmt) {
+                $presenceStmt->bind_param('ii', $otherUserId, $uid);
+                $presenceStmt->execute();
+                $activeRow = $presenceStmt->get_result()->fetch_assoc();
+                $presenceStmt->close();
+                if ($activeRow) {
+                    $shouldNotify = false;
+                }
             }
-            $nStmt->bind_param('isiss', $otherUserId, $nType, $nRefId, $nTitle, $nBody);
-            if (!$nStmt->execute()) {
-                die('Notif execute failed (chat_thread): ' . $nStmt->error);
+
+            if ($shouldNotify) {
+                $nType  = 'message';
+                $nRefId = $messageId;
+                $nTitle = 'New message';
+                $nBody  = mb_strimwidth($body, 0, 120, '...');
+
+                $nStmt = $conn->prepare("
+                    INSERT INTO notifications (user_id, type, ref_id, title, body, is_seen)
+                    VALUES (?, ?, ?, ?, ?, 0)
+                ");
+                if ($nStmt) {
+                    $nStmt->bind_param('isiss', $otherUserId, $nType, $nRefId, $nTitle, $nBody);
+                    $nStmt->execute();
+                    $nStmt->close();
+                }
             }
-            $nStmt->close();
 
             $_SESSION['ws_notify'] = [
                 'to' => $otherUserId,
@@ -73,10 +94,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'body' => $body
             ];
 
-            // Optional email notification
+            //  email notification reagarding new message if user are offline
             $senderInfo = getUserInfo($conn, $uid);
             $receiverInfo = getUserInfo($conn, $otherUserId);
-            if ($senderInfo && $receiverInfo) {
+            if ($senderInfo && $receiverInfo && $shouldNotify) {
                 $emailSubject = "New message from @" . $senderInfo['username'];
                 $emailBody =
                     "Hello " . $receiverInfo['name'] . ",\n\n"
@@ -102,9 +123,9 @@ $stmt->bind_param('ii', $otherUserId, $uid);
 $stmt->execute();
 $stmt->close();
 
-// load thread
+// load chat history
 $stmt = $conn->prepare("
-    SELECT id, sender_id, receiver_id, body, created_at
+    SELECT id, sender_id, receiver_id, body, is_read, created_at
     FROM messages
     WHERE (sender_id = ? AND receiver_id = ?)
        OR (sender_id = ? AND receiver_id = ?)
@@ -123,82 +144,6 @@ $initial = strtoupper(substr($name, 0, 1));
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
-
-<style>
-.chat-shell { max-width: 980px; margin: 0 auto; }
-.chat-card {
-    border: 1px solid #e9ecef;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0,0,0,.04);
-    background: #fff;
-}
-.chat-header {
-    padding: 14px 16px;
-    border-bottom: 1px solid #eef1f4;
-    background: #fff;
-}
-.avatar {
-    width: 38px; height: 38px; border-radius: 50%;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-weight: 700; color: #fff; background: #198754;
-    position: relative;
-}
-.presence-dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    position: absolute; right: -1px; bottom: -1px; border: 2px solid #fff;
-}
-.presence-on { background: #22c55e; }
-.presence-off { background: #9ca3af; }
-
-.chat-body {
-    height: 62vh;
-    overflow-y: auto;
-    padding: 16px;
-    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
-}
-.msg-row { display: flex; margin-bottom: 10px; }
-.msg-row.mine { justify-content: flex-end; }
-.msg-row.theirs { justify-content: flex-start; }
-
-.msg-bubble {
-    max-width: 76%;
-    border-radius: 14px;
-    padding: 9px 12px;
-    line-height: 1.35;
-    word-break: break-word;
-    white-space: pre-wrap;
-    box-shadow: 0 1px 2px rgba(0,0,0,.06);
-}
-.msg-row.mine .msg-bubble {
-    background: #198754;
-    color: #fff;
-    border-bottom-right-radius: 6px;
-}
-.msg-row.theirs .msg-bubble {
-    background: #fff;
-    color: #1f2937;
-    border: 1px solid #eef1f4;
-    border-bottom-left-radius: 6px;
-}
-.msg-time {
-    margin-top: 4px;
-    font-size: .74rem;
-    color: #6b7280;
-}
-.msg-row.mine .msg-time { text-align: right; }
-
-.chat-footer {
-    padding: 12px;
-    border-top: 1px solid #eef1f4;
-    background: #fff;
-}
-.chat-input {
-    border-radius: 12px;
-    resize: none;
-}
-.send-btn { border-radius: 12px; min-width: 100px; }
-</style>
 
 <div class="chat-shell">
     <div class="chat-card">
@@ -234,15 +179,25 @@ require_once __DIR__ . '/../includes/header.php';
                 <div class="msg-row <?= $mine ? 'mine' : 'theirs' ?>" data-message-id="<?= (int)$m['id'] ?>">
                     <div>
                         <div class="msg-bubble"><?= h($m['body']) ?></div>
-                        <div class="msg-time"><?= date('M j, H:i', strtotime($m['created_at'])) ?></div>
+                        <div class="msg-time">
+                            <?= date('M j, H:i', strtotime($m['created_at'])) ?>
+                            <?php if ($mine): ?>
+                                <span class="tick" id="tick-<?= (int)$m['id'] ?>">
+                                    <?= ((int)$m['is_read'] === 1) ? '✓✓' : '✓' ?>
+                                </span>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             <?php endforeach; ?>
         </div>
 
         <div class="chat-footer">
-            <form method="POST" id="chatForm" class="d-flex gap-2">
+            <form method="POST" id="chatForm" class="d-flex gap-2" autocomplete="off" novalidate>
                 <textarea name="body" id="bodyInput" class="form-control chat-input" rows="2" required placeholder="Type your message..."></textarea>
+                <div class="invalid-feedback">
+                    Message cannot be empty.
+                </div>
                 <button type="submit" class="btn btn-success send-btn">
                     <i class="bi bi-send"></i> Send
                 </button>
@@ -251,90 +206,191 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
+<script src="js/app.js"></script>
 <script>
-const CURRENT_USER_ID = <?= (int)$uid ?>;
-const OTHER_USER_ID = <?= (int)$otherUserId ?>;
-const WS_HOST = window.location.hostname;
-const ws = new WebSocket(`ws://${WS_HOST}:8080?user_id=${CURRENT_USER_ID}`);
+    //This section handle real time chat section
+    const CURRENT_USER_ID = <?= (int)$uid ?>;
+    const OTHER_USER_ID = <?= (int)$otherUserId ?>;
+    const WS_HOST = "192.168.1.111"; // adjust to your WebSocket server host
+    let ws = null;
 
-const chatBody = document.getElementById('chatBody');
-const presenceDot = document.getElementById('presenceDot');
-const presenceText = document.getElementById('presenceText');
-const bodyInput = document.getElementById('bodyInput');
+    const pendingNotify = <?= json_encode(!empty($wsNotify) ? [
+        'type' => 'chat',
+        'to' => (int)$wsNotify['to'],
+        'from' => (int)$uid,
+        'message_id' => (int)$wsNotify['message_id'],
+        'subject' => $wsNotify['subject'],
+        'body' => $wsNotify['body']
+    ] : null) ?>;
 
-function scrollBottom() {
-    chatBody.scrollTop = chatBody.scrollHeight;
-}
-scrollBottom();
+    const chatBody = document.getElementById('chatBody');
+    const presenceDot = document.getElementById('presenceDot');
+    const presenceText = document.getElementById('presenceText');
+    const bodyInput = document.getElementById('bodyInput');
+    const chatForm = document.getElementById('chatForm');
 
-function appendMessage(body, mine, timeText) {
-    const row = document.createElement('div');
-    row.className = 'msg-row ' + (mine ? 'mine' : 'theirs');
+    let sending = false;
+    let pendingSent = false;
 
-    const wrap = document.createElement('div');
-    const bubble = document.createElement('div');
-    bubble.className = 'msg-bubble';
-    bubble.textContent = body;
-
-    const t = document.createElement('div');
-    t.className = 'msg-time';
-    t.textContent = timeText;
-
-    wrap.appendChild(bubble);
-    wrap.appendChild(t);
-    row.appendChild(wrap);
-    chatBody.appendChild(row);
+    function scrollBottom() {
+        chatBody.scrollTop = chatBody.scrollHeight;
+    }
     scrollBottom();
-}
 
-function setPresence(isOnline) {
-    presenceDot.classList.remove('presence-on', 'presence-off');
-    presenceDot.classList.add(isOnline ? 'presence-on' : 'presence-off');
-    presenceText.textContent = isOnline ? 'Online' : 'Offline';
-}
+    function appendMessage(body, mine, timeText, messageId = null, isRead = 0) {
+        // prevent duplicate render by message_id
+        if (messageId) {
+            const exists = chatBody.querySelector(`.msg-row[data-message-id="${messageId}"]`);
+            if (exists) return;
+        }
 
-ws.onopen = () => {
-    <?php if (!empty($wsNotify)): ?>
-    ws.send(JSON.stringify({
-        type: "chat",
-        to: <?= (int)$wsNotify['to'] ?>,
-        message_id: <?= (int)$wsNotify['message_id'] ?>,
-        subject: <?= json_encode($wsNotify['subject']) ?>,
-        body: <?= json_encode($wsNotify['body']) ?>
-    }));
-    <?php endif; ?>
-};
+        const row = document.createElement('div');
+        row.className = 'msg-row ' + (mine ? 'mine' : 'theirs');
+        if (messageId) row.setAttribute('data-message-id', messageId);
 
-ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
+        const wrap = document.createElement('div');
 
-    if (data.type === 'new_message') {
-        // incoming message for this thread
-        if (Number(data.from) === OTHER_USER_ID && Number(data.to) === CURRENT_USER_ID) {
-            appendMessage(data.body || '', false, data.created_at || new Date().toLocaleString());
+        const bubble = document.createElement('div');
+        bubble.className = 'msg-bubble';
+        bubble.textContent = body;
 
-            // mark read silently
-            fetch(`<?= SITE_URL ?>/mark_thread_read.php?user=${OTHER_USER_ID}`, {
-                method: 'GET',
-                credentials: 'same-origin'
-            }).catch(() => {});
+        const t = document.createElement('div');
+        t.className = 'msg-time';
+        t.textContent = timeText;
+
+        if (mine && messageId) {
+            const tick = document.createElement('span');
+            tick.className = 'tick';
+            tick.id = 'tick-' + messageId;
+            tick.textContent = Number(isRead) === 1 ? '✓✓' : '✓';
+            tick.style.marginLeft = '6px';
+            t.appendChild(tick);
+        }
+
+        wrap.appendChild(bubble);
+        wrap.appendChild(t);
+        row.appendChild(wrap);
+        chatBody.appendChild(row);
+        scrollBottom();
+    }
+
+    function setPresence(isOnline) {
+        presenceDot.classList.remove('presence-on', 'presence-off');
+        presenceDot.classList.add(isOnline ? 'presence-on' : 'presence-off');
+        presenceText.textContent = isOnline ? 'Online' : 'Offline';
+    }
+
+    function sendPendingNotify() {
+        if (!pendingNotify || pendingSent) return;
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(pendingNotify));
+            pendingSent = true; // one-time send only
         }
     }
 
-    if (data.type === 'presence' && Number(data.user_id) === OTHER_USER_ID) {
-        setPresence(Number(data.is_online) === 1);
+    function pingPresence() {
+        fetch(`<?= SITE_URL ?>/chat_presence_ping.php`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `with_user_id=${encodeURIComponent(OTHER_USER_ID)}`
+        }).catch(() => {});
     }
-};
 
-ws.onerror = (e) => console.error('WS error', e);
+    setInterval(pingPresence, 10000);
 
-// QoL: Enter to send, Shift+Enter newline
-bodyInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        document.getElementById('chatForm').submit();
+    function handleRealtimeEvent(data) {
+        if (data.type === 'new_message') {
+            if (Number(data.from) === OTHER_USER_ID && Number(data.to) === CURRENT_USER_ID) {
+                appendMessage(
+                    data.body || '',
+                    false,
+                    data.created_at || new Date().toLocaleString(),
+                    data.message_id || null,
+                    0
+                );
+
+                fetch(`<?= SITE_URL ?>/mark_thread_read.php?user=${OTHER_USER_ID}`, {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                }).catch(() => {});
+
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'read_receipt',
+                        to: OTHER_USER_ID,
+                        from: CURRENT_USER_ID
+                    }));
+                }
+            }
+        }
+
+        if (data.type === 'read_receipt') {
+            if (Number(data.from) === OTHER_USER_ID && Number(data.to) === CURRENT_USER_ID) {
+                document.querySelectorAll('.tick').forEach(t => t.textContent = '✓✓');
+            }
+        }
+
+        if (data.type === 'presence' && Number(data.user_id) === OTHER_USER_ID) {
+            setPresence(Number(data.is_online) === 1);
+        }
     }
-});
+
+    function connectThreadSocket() {
+        ws = new WebSocket(`ws://${WS_HOST}:8080?user_id=${CURRENT_USER_ID}`);
+
+        ws.onopen = () => {
+            sendPendingNotify();
+            pingPresence();
+        };
+
+        ws.onmessage = (event) => {
+            let data;
+            try {
+                data = JSON.parse(event.data);
+            } catch (_e) {
+                return;
+            }
+            handleRealtimeEvent(data);
+        };
+
+        ws.onerror = () => {
+            try { ws.close(); } catch (_e) {}
+        };
+
+        ws.onclose = () => {
+            setTimeout(connectThreadSocket, 1500);
+        };
+    }
+
+    connectThreadSocket();
+
+    window.addEventListener('app:new-message', function (e) {
+        if (!e || !e.detail) return;
+        handleRealtimeEvent(e.detail);
+    });
+
+    // prevent double submit on mobile
+    chatForm.addEventListener('submit', function(e) {
+        if (sending) {
+            e.preventDefault();
+            return;
+        }
+        sending = true;
+
+        const btn = chatForm.querySelector('button[type="submit"]');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending...';
+        }
+    });
+
+    bodyInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey && !sending) {
+            e.preventDefault();
+            chatForm.requestSubmit();
+        }
+    });
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

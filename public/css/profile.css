@@ -1,9 +1,26 @@
 /* Profile hero */
 .profile-hero {
+    position: relative;
     background: radial-gradient(circle at 12% 20%, rgba(255,255,255,0.12), transparent 35%),
                 radial-gradient(circle at 85% 0%, rgba(255,255,255,0.10), transparent 30%),
                 linear-gradient(135deg, #1f8f63 0%, #0f5132 55%, #0b3b25 100%);
     border: 1px solid rgba(255,255,255,0.14);
+}
+
+.hero-options {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 2;
+}
+
+
+
+@media (min-width: 768px) {
+    .hero-options {
+        top: 1.25rem;
+        right: 1.25rem;
+    }
 }
 
 .profile-avatar {
@@ -18,6 +35,9 @@
     box-shadow: 0 16px 40px rgba(0,0,0,0.18);
 }
 
+.option-btn{
+    position: relative;
+}
 .profile-cta {
     border-radius: 14px;
 }

@@ -35,7 +35,6 @@ $subject = '';
 $body = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    die('Form submitted'); // Debug line to confirm form submission
     $subject = trim($_POST['subject'] ?? '');
     $body    = trim($_POST['body'] ?? '');
 
@@ -67,12 +66,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $nRefId = $messageId;
             $nTitle = 'New message';
             $nBody = mb_strimwidth($body, 0, 120, '...');
-            die('Reached notification block');
             $nStmt = $conn->prepare("INSERT INTO notifications (user_id, type, ref_id, title, body, is_seen) VALUES (?, ?, ?, ?, ?, 0)");
             if (!$nStmt) {
                 die('Notif prepare failed: ' . $conn->error);
             }
-            $nStmt->bind_param('isiss', $targetUserId, $nType, $nRefId, $nTitle, $nBody);
+            $nStmt->bind_param('isiss', $toUserId, $nType, $nRefId, $nTitle, $nBody);
             if (!$nStmt->execute()) {
                 die('Notif execute failed: ' . $nStmt->error);
             }

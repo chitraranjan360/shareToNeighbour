@@ -77,62 +77,13 @@ foreach ($requests as $r) {
     if (($r['status'] ?? '') === 'pending') $pendingRequests++;
 }
 
+
+
+
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<style>
-.msg-shell { max-width: 980px; margin: 0 auto; }
-.msg-card {
-  border: 1px solid #e9ecef;
-  border-radius: 14px;
-  overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0,0,0,.04);
-}
-.msg-head {
-  background: #fff;
-  border-bottom: 1px solid #eef1f4;
-  padding: 14px 18px;
-}
-.msg-list .item {
-  display: block;
-  padding: 14px 16px;
-  border-bottom: 1px solid #f1f3f5;
-  text-decoration: none;
-  color: inherit;
-  transition: background .15s ease;
-}
-.msg-list .item:last-child { border-bottom: 0; }
-.msg-list .item:hover { background: #f8fafc; }
-
-.avatar {
-  width: 42px; height: 42px; border-radius: 50%;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 14px;
-  color: #fff; background: #198754;
-  position: relative;
-  flex-shrink: 0;
-}
-.dot {
-  width: 10px; height: 10px; border-radius: 50%;
-  position: absolute; right: -1px; bottom: -1px;
-  border: 2px solid #fff;
-}
-.dot.on { background: #22c55e; }
-.dot.off { background: #9ca3af; }
-
-.name { font-weight: 600; }
-.preview { color: #6c757d; font-size: .93rem; line-height: 1.3; }
-.time { font-size: .78rem; color: #6c757d; white-space: nowrap; }
-.badge-unread {
-  min-width: 20px; height: 20px; border-radius: 10px;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: .75rem; font-weight: 700;
-}
-.empty {
-  padding: 46px 20px; text-align: center; color: #6c757d;
-}
-</style>
-
+<link rel="stylesheet" href="css/message.css">
 <div class="msg-shell">
 
   <ul class="nav nav-tabs mb-3">
@@ -160,7 +111,7 @@ require_once __DIR__ . '/../includes/header.php';
       <div class="msg-list">
         <?php if (empty($conversations)): ?>
           <div class="empty">
-            <i class="bi bi-chat-square-text fs-1 d-block mb-2"></i>
+            <i class="bi bi-chat-square-text fs-1 d-block"></i>
             No conversations yet.
           </div>
         <?php else: ?>
@@ -195,7 +146,31 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
 
                 <div class="text-end">
-                  <div class="time"><?= date('M j, H:i', strtotime($c['created_at'])) ?></div>
+                  <div class="d-flex align-items-center justify-content-end gap-2">
+                    <div class="time"><?= date('M j, H:i', strtotime($c['created_at'])) ?></div>
+                    <?php if ((int)$c['last_message_id'] > 0): ?>
+                      <div class="dropdown" onclick="event.stopPropagation();">
+                        <button class="btn btn-sm btn-outline-secondary" type="button"
+                                data-bs-toggle="dropdown" aria-expanded="false"
+                                aria-label="Conversation options">
+                          <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-extra-sm p-2  rounded">
+                          <li>
+                            <form action="<?= SITE_URL ?>/delete_message.php" method="POST"
+                                  onclick="event.stopPropagation();"
+                                  onsubmit="return confirm('Delete this conversation? This will remove all messages in this thread for both parties.');">
+                              <input type="hidden" name="message_id" value="<?= (int)$c['last_message_id'] ?>">
+                              <input type="hidden" name="return_tab" value="chats">
+                              <button type="submit" class="dropdown-item text-danger">
+                                <i class="bi bi-trash me-2"></i>Delete Chat
+                              </button>
+                            </form>
+                          </li>
+                        </ul>
+                      </div>
+                    <?php endif; ?>
+                  </div>
                   <?php if ((int)$c['unread_count'] > 0): ?>
                     <span class="badge bg-danger badge-unread mt-2"><?= (int)$c['unread_count'] ?></span>
                   <?php endif; ?>
@@ -283,7 +258,8 @@ require_once __DIR__ . '/../includes/header.php';
 <script>
 const CURRENT_USER_ID = <?= (int)$uid ?>;
 const WS_HOST = window.location.hostname;
-const ws = new WebSocket(`ws://${WS_HOST}:8080?user_id=${CURRENT_USER_ID}`);
+let ws = null;
+let wsNotifySent = false;
 
 function setPresence(userId, isOnline) {
   const dot = document.getElementById(`user-dot-${userId}`);
@@ -295,34 +271,57 @@ function setPresence(userId, isOnline) {
   if (status) status.textContent = isOnline ? 'Online' : 'Offline';
 }
 
-ws.onopen = () => {
-  <?php if (!empty($wsNotify)): ?>
-  ws.send(JSON.stringify({
-    type: "chat",
-    to: <?= (int)$wsNotify['to'] ?>,
-    message_id: <?= (int)$wsNotify['message_id'] ?>,
-    subject: <?= json_encode($wsNotify['subject']) ?>,
-    body: <?= json_encode($wsNotify['body']) ?>
-  }));
-  <?php endif; ?>
-};
+function connectMessagesSocket() {
+  ws = new WebSocket(`ws://${WS_HOST}:8080?user_id=${CURRENT_USER_ID}`);
 
-ws.onmessage = (event) => {
-  const data = JSON.parse(event.data);
+  ws.onopen = () => {
+    <?php if (!empty($wsNotify)): ?>
+    if (!wsNotifySent) {
+      ws.send(JSON.stringify({
+        type: 'chat',
+        to: <?= (int)$wsNotify['to'] ?>,
+        message_id: <?= (int)$wsNotify['message_id'] ?>,
+        subject: <?= json_encode($wsNotify['subject']) ?>,
+        body: <?= json_encode($wsNotify['body']) ?>
+      }));
+      wsNotifySent = true;
+    }
+    <?php endif; ?>
+  };
 
-  if (data.type === 'new_message' && Number(data.to) === Number(CURRENT_USER_ID)) {
-    location.reload();
-  }
+  ws.onmessage = (event) => {
+    let data;
+    try {
+      data = JSON.parse(event.data);
+    } catch (_e) {
+      return;
+    }
 
-  if (data.type === 'new_request') {
-    // owner gets new request alert instantly
-    location.reload();
-  }
+    if (data.type === 'new_message' && Number(data.to) === Number(CURRENT_USER_ID)) {
+      location.reload();
+      return;
+    }
 
-  if (data.type === 'presence') {
-    setPresence(Number(data.user_id), Number(data.is_online) === 1);
-  }
-};
+    if (data.type === 'new_request') {
+      location.reload();
+      return;
+    }
+
+    if (data.type === 'presence') {
+      setPresence(Number(data.user_id), Number(data.is_online) === 1);
+    }
+  };
+
+  ws.onerror = () => {
+    try { ws.close(); } catch (_e) {}
+  };
+
+  ws.onclose = () => {
+    setTimeout(connectMessagesSocket, 1500);
+  };
+}
+
+connectMessagesSocket();
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

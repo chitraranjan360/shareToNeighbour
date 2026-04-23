@@ -192,104 +192,114 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <script>
-const searchInput = document.getElementById('address_search');
-const suggestionsBox = document.getElementById('addressSuggestions');
+document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.getElementById('address_search');
+    const suggestionsBox = document.getElementById('addressSuggestions');
 
-const postalInput = document.getElementById('postal_code');
-const streetInput = document.getElementById('street');
-const houseInput = document.getElementById('house_number');
-const municipalityInput = document.getElementById('municipality');
+    const postalInput = document.getElementById('postal_code');
+    const streetInput = document.getElementById('street');
+    const houseInput = document.getElementById('house_number');
+    const municipalityInput = document.getElementById('municipality');
 
-const dawaIdInput = document.getElementById('dawa_id');
-const latInput = document.getElementById('latitude');
-const lngInput = document.getElementById('longitude');
+    const dawaIdInput = document.getElementById('dawa_id');
+    const latInput = document.getElementById('latitude');
+    const lngInput = document.getElementById('longitude');
 
-let debounceTimer = null;
+    if (!searchInput || !suggestionsBox) return;
 
-function clearSuggestions() {
-  suggestionsBox.innerHTML = '';
-  suggestionsBox.style.display = 'none';
-}
-function resetAddressFields() {
-  postalInput.value = '';
-  streetInput.value = '';
-  houseInput.value = '';
-  municipalityInput.value = '';
-  dawaIdInput.value = '';
-  latInput.value = '';
-  lngInput.value = '';
-}
+    let debounceTimer = null;
 
-searchInput.addEventListener('input', () => {
-  resetAddressFields();
-  const q = searchInput.value.trim();
-  if (q.length < 3) return clearSuggestions();
-
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(async () => {
-    try {
-      const res = await fetch(`?api=dawa_autocomplete&q=${encodeURIComponent(q)}`);
-      const data = await res.json();
-
-      suggestionsBox.innerHTML = '';
-      if (!Array.isArray(data) || data.length === 0) return clearSuggestions();
-
-      data.forEach(item => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'list-group-item list-group-item-action';
-        btn.textContent = item.tekst || 'Unknown address';
-
-        btn.onclick = async () => {
-          try {
-            const href = item?.adresse?.href || '';
-            if (!href) return;
-
-            const dres = await fetch(`?api=dawa_address&href=${encodeURIComponent(href)}`);
-            const detail = await dres.json();
-
-            if (!dres.ok) {
-              console.error('dawa_address error:', detail);
-              resetAddressFields();
-              return;
-            }
-
-            streetInput.value = detail.street || '';
-            postalInput.value = detail.postal_code || '';
-            municipalityInput.value = detail.municipality || '';
-            dawaIdInput.value = detail.id || '';
-
-            // single field rule: house_number OR apartment
-            const h = (detail.house_number || '').trim();
-            const a = (detail.apartment || '').trim();
-            houseInput.value = h !== '' ? h : a;
-
-            latInput.value = (detail.lat ?? '');
-            lngInput.value = (detail.lng ?? '');
-
-            searchInput.value = item.tekst || '';
-            clearSuggestions();
-          } catch (err) {
-            console.error('Detail fetch failed:', err);
-            resetAddressFields();
-          }
-        };
-
-        suggestionsBox.appendChild(btn);
-      });
-
-      suggestionsBox.style.display = 'block';
-    } catch (err) {
-      console.error('Autocomplete failed:', err);
-      clearSuggestions();
+    function clearSuggestions() {
+        suggestionsBox.innerHTML = '';
+        suggestionsBox.style.display = 'none';
     }
-  }, 250);
-});
 
-document.addEventListener('click', (e) => {
-  if (!suggestionsBox.contains(e.target) && e.target !== searchInput) {
-    clearSuggestions();
-  }
+    function resetAddressFields() {
+        if (postalInput) postalInput.value = '';
+        if (streetInput) streetInput.value = '';
+        if (houseInput) houseInput.value = '';
+        if (municipalityInput) municipalityInput.value = '';
+        if (dawaIdInput) dawaIdInput.value = '';
+        if (latInput) latInput.value = '';
+        if (lngInput) lngInput.value = '';
+    }
+
+    searchInput.addEventListener('input', function () {
+        resetAddressFields();
+        const q = searchInput.value.trim();
+        if (q.length < 3) {
+            clearSuggestions();
+            return;
+        }
+
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(async function () {
+            try {
+                const res = await fetch('?api=dawa_autocomplete&q=' + encodeURIComponent(q));
+                const data = await res.json();
+
+                suggestionsBox.innerHTML = '';
+                if (!Array.isArray(data) || data.length === 0) {
+                    clearSuggestions();
+                    return;
+                }
+
+                data.forEach(function (item) {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'list-group-item list-group-item-action';
+                    btn.textContent = item.tekst || 'Unknown address';
+
+                    btn.onclick = async function () {
+                        try {
+                            const href = item && item.adresse ? (item.adresse.href || '') : '';
+                            if (!href) return;
+
+                            const dres = await fetch('?api=dawa_address&href=' + encodeURIComponent(href));
+                            const detail = await dres.json();
+
+                            if (!dres.ok) {
+                                console.error('dawa_address error:', detail);
+                                resetAddressFields();
+                                return;
+                            }
+
+                            if (streetInput) streetInput.value = detail.street || '';
+                            if (postalInput) postalInput.value = detail.postal_code || '';
+                            if (municipalityInput) municipalityInput.value = detail.municipality || '';
+                            if (dawaIdInput) dawaIdInput.value = detail.id || '';
+
+                            const h = (detail.house_number || '').trim();
+                            const a = (detail.apartment || '').trim();
+                            if (houseInput) houseInput.value = h !== '' ? h : a;
+
+                            if (latInput) latInput.value = detail.lat ?? '';
+                            if (lngInput) lngInput.value = detail.lng ?? '';
+
+                            searchInput.value = item.tekst || '';
+                            clearSuggestions();
+                        } catch (err) {
+                            console.error('Detail fetch failed:', err);
+                            resetAddressFields();
+                        }
+                    };
+
+                    suggestionsBox.appendChild(btn);
+                });
+
+                suggestionsBox.style.display = 'block';
+            } catch (err) {
+                console.error('Autocomplete failed:', err);
+                clearSuggestions();
+            }
+        }, 250);
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!suggestionsBox.contains(e.target) && e.target !== searchInput) {
+            clearSuggestions();
+        }
+    });
 });
 </script>
 

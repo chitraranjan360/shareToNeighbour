@@ -50,6 +50,30 @@ function pendingRequestCount(mysqli $conn): int {
     return (int)($r['c'] ?? 0);
 }
 
+// Logs out user if their account has been disabled (called on every page load)
+function logoutDisabledUser(mysqli $conn): void
+{
+    if (!isUserLoggedIn()) return;
+
+    $uid = (int)($_SESSION['user_id'] ?? 0);
+    if ($uid <= 0) return;
+
+    $stmt = $conn->prepare("SELECT is_active, disabled_reason FROM users WHERE id = ? LIMIT 1");
+    $stmt->bind_param('i', $uid);
+    $stmt->execute();
+    $u = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if (!$u || (int)$u['is_active'] !== 1) {
+        unset($_SESSION['user_id'], $_SESSION['username'], $_SESSION['user_type']);
+
+        $msg = 'Your account has been disabled.';
+        if (!empty($u['disabled_reason'])) $msg .= ' Reason: ' . $u['disabled_reason'];
+
+        setFlash('error', $msg);
+        redirect(SITE_URL . '/login.php');
+    }
+}
 // ════════════════════════════════════════
 //  ADMIN AUTH (completely separate)
 // ════════════════════════════════════════

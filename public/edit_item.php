@@ -58,20 +58,18 @@ $title = $item['title'] ?? '';
 $description = $item['description'] ?? '';
 $category = $item['category'] ?? 'other';
 $condition = $item['condition_level'] ?? 'good';
-$video_link = $item['video_link'] ?? '';
+
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title       = trim($_POST['title'] ?? '');
     $description = trim($_POST['description'] ?? '');
     $category    = $_POST['category'] ?? 'other';
     $condition   = $_POST['condition_level'] ?? 'good';
-    $video_link  = trim($_POST['video_link'] ?? '');
+   
 
     if (strlen($title) < 3)        $errors[] = 'Title must be at least 3 characters.';
     if (strlen($description) < 10) $errors[] = 'Description must be at least 10 characters.';
-    if ($video_link !== '' && !filter_var($video_link, FILTER_VALIDATE_URL)) {
-        $errors[] = 'Enter a valid video URL.';
-    }
+    
 
     // Replacement images (optional)
     $allowed = ['image/jpeg','image/png','image/gif','image/webp'];
@@ -287,10 +285,7 @@ require_once __DIR__ . '/../includes/header.php';
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Video Link <small class="text-muted">(optional)</small></label>
-                        <input type="url" class="form-control" name="video_link" value="<?= h($video_link) ?>">
-                    </div>
+                
 
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-success flex-grow-1">

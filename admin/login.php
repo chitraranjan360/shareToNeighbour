@@ -39,21 +39,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Admin Login — <?= SITE_NAME ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../public/css/admin.css">
 </head>
-<body class="bg-dark d-flex align-items-center min-vh-100">
+<body class="admin-auth-page d-flex align-items-center min-vh-100">
 
 <div class="container">
     <div class="row justify-content-center">
-        <div class="col-md-5 col-lg-4">
-            <div class="card shadow-lg border-warning">
-                <div class="card-header bg-warning text-dark text-center py-3">
-                    <h4 class="mb-0"><i class="bi bi-shield-lock-fill"></i> Admin Login</h4>
-                    <small><?= SITE_NAME ?> Administration</small>
+        <div class="col-md-6 col-lg-5 col-xl-4">
+            <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+                <div class="card-header bg-warning-subtle text-dark text-center py-4 border-0">
+                    <h4 class="mb-1"><i class="bi bi-shield-lock-fill me-2"></i>Admin Login</h4>
+                    <small class="text-body-secondary"><?= SITE_NAME ?> Administration</small>
                 </div>
                 <div class="card-body p-4">
 
                     <?php if (!empty($errors)): ?>
-                    <div class="alert alert-danger"><ul class="mb-0">
+                    <div class="alert alert-danger border-0 shadow-sm"><ul class="mb-0">
                         <?php foreach ($errors as $e): ?><li><?= h($e) ?></li><?php endforeach; ?>
                     </ul></div>
                     <?php endif; ?>
@@ -61,23 +62,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <form method="POST" novalidate>
                         <div class="mb-3">
                             <label class="form-label">Admin Username</label>
-                            <input type="text" class="form-control" name="username" value="<?= h($username) ?>" required autofocus>
+                            <input type="text" class="form-control form-control-lg" name="username" value="<?= h($username) ?>" required autofocus>
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-4">
                             <label class="form-label">Password</label>
-                            <input type="password" class="form-control" name="password" required>
+                            <input type="password" class="form-control form-control-lg" name="password" required>
                         </div>
-                        <button type="submit" class="btn btn-warning w-100 fw-bold">
+                        <button type="submit" class="btn btn-warning w-100 fw-semibold py-2">
                             <i class="bi bi-shield-check"></i> Admin Login
                         </button>
                     </form>
 
-                    <hr>
-                    <p class="text-center small text-muted mb-0">
+                    <hr class="my-4">
+                    <p class="text-center small text-body-secondary mb-0">
                         <a href="<?= SITE_URL ?>/index.php">← Back to main site</a>
                     </p>
-                    <hr>
-                    <p class="text-center small text-muted mb-0">
+                    <p class="text-center small text-body-secondary mt-2 mb-0">
                        <a href="register.php">Register as Admin</a> 
                     </p>
                 </div>

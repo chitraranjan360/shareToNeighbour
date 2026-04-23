@@ -6,7 +6,7 @@ requireUserLogin();
 
 $uid = currentUserId();
 
-// Fetch user's review stats (FIX: use $uid)
+// Fetch user's review stats (use $uid)
 $stmt = $conn->prepare("
   SELECT 
     COUNT(*) AS review_count,
@@ -45,6 +45,18 @@ require_once __DIR__ . '/../includes/header.php';
 ?>
 <link rel="stylesheet" href="css/profile.css">
 <section class="profile-hero text-light rounded-4 p-4 p-md-5 mb-4 shadow-sm">
+  <div class="hero-options dropdown rounded bg-white bg-opacity-50 shadow-sm">
+    <button class="btn btn-sm btn-outline-secondary" type="button"
+      data-bs-toggle="dropdown">
+      <i class="bi bi-three-dots-vertical"></i>
+    </button>
+    <ul class="dropdown-menu rounded shadow-extra-sm ">
+      <li><a class="dropdown-item" href="<?= SITE_URL ?>/edit_profile.php">Edit Profile</a></li>
+      <li><hr class="dropdown-divider"></li>
+      <li><a class="dropdown-item" href="<?= SITE_URL ?>/change_password.php">Change Password</a></li>
+    </ul>
+  </div>
+
   <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
     <div class="d-flex align-items-center gap-3">
       <div class="profile-avatar">
@@ -61,15 +73,6 @@ require_once __DIR__ . '/../includes/header.php';
           <?php endif; ?>
         </div>
       </div>
-    </div>
-
-    <div class="d-flex flex-column flex-sm-row gap-2">
-      <a href="<?= SITE_URL ?>/edit_profile.php" class="btn btn-light btn-lg profile-cta">
-        <i class="bi bi-pencil-square"></i> Edit Profile
-      </a>
-      <a href="<?= SITE_URL ?>/upload.php" class="btn btn-success btn-lg profile-cta">
-        <i class="bi bi-plus-circle"></i> Share Item
-      </a>
     </div>
   </div>
 </section>

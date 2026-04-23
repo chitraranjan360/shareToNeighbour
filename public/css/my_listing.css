@@ -18,20 +18,13 @@
 .listing-card-link:hover,
 .listing-card-link:focus {
     transform: translateY(-4px);
-    box-shadow: 0 18px 52px rgba(0,0,0,0.14);
+    box-shadow: 0 25px 52px rgba(0,0,0,0.14);
 }
 
 /* Image */
 .listing-card-img {
     height: 170px;
     overflow: hidden;
-}
-.listing-card-img img {
-    display: block;
-    transition: transform 0.25s ease;
-}
-.listing-card-link:hover .listing-card-img img {
-    transform: scale(1.03);
 }
 
 /* Options button positioning */
@@ -40,18 +33,9 @@
     top: 10px;
     right: 10px;
     z-index: 3;
+    border-radius: 12px;
 }
 
-/* Icon button */
-.icon-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 12px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid rgba(0,0,0,0.06);
-}
 
 /* Ensure dropdown forms look clean */
 .dropdown-menu form { margin: 0; }

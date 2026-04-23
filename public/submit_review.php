@@ -44,7 +44,7 @@ if ((int)$item['user_id'] !== $revieweeId) {
     redirect(SITE_URL . '/item.php?id=' . $itemId);
 }
 
-// Ensure this request belongs to this item, this owner, and this reviewer is the requester AND accepted
+// Ensure this request belongs to this item, this owner, and this reviewer is requester AND accepted
 $stmt = $conn->prepare("
     SELECT id
     FROM requests
@@ -61,12 +61,76 @@ if (!$ok) {
     redirect(SITE_URL . '/item.php?id=' . $itemId);
 }
 
+/**
+ * Handle optional image upload safely.
+ * DB column `reviews.image` should store a string path, not $_FILES array.
+ */
+$imagePath = null;
+
+if (isset($_FILES['photo']) && is_array($_FILES['photo']) && ($_FILES['photo']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+    $fileErr = (int)($_FILES['photo']['error'] ?? UPLOAD_ERR_OK);
+
+    if ($fileErr !== UPLOAD_ERR_OK) {
+        setFlash('error', 'Image upload failed. Please try again.');
+        redirect(SITE_URL . '/item.php?id=' . $itemId);
+    }
+
+    $tmpPath = $_FILES['photo']['tmp_name'] ?? '';
+    $origName = $_FILES['photo']['name'] ?? '';
+    $size = (int)($_FILES['photo']['size'] ?? 0);
+
+    if ($tmpPath === '' || !is_uploaded_file($tmpPath)) {
+        setFlash('error', 'Invalid uploaded file.');
+        redirect(SITE_URL . '/item.php?id=' . $itemId);
+    }
+
+    // 5MB max
+    if ($size > 5 * 1024 * 1024) {
+        setFlash('error', 'Image is too large. Max 5MB allowed.');
+        redirect(SITE_URL . '/item.php?id=' . $itemId);
+    }
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime = $finfo->file($tmpPath);
+
+    $allowed = [
+        'image/jpeg' => 'jpg',
+        'image/png'  => 'png',
+        'image/webp' => 'webp',
+        'image/gif'  => 'gif'
+    ];
+
+    if (!isset($allowed[$mime])) {
+        setFlash('error', 'Only JPG, PNG, WEBP, GIF images are allowed.');
+        redirect(SITE_URL . '/item.php?id=' . $itemId);
+    }
+
+    $ext = $allowed[$mime];
+    $uploadDirAbs = __DIR__ . '/../public/uploads/reviews';
+    if (!is_dir($uploadDirAbs) && !mkdir($uploadDirAbs, 0775, true)) {
+        setFlash('error', 'Could not create upload directory.');
+        redirect(SITE_URL . '/item.php?id=' . $itemId);
+    }
+
+    $safeBase = bin2hex(random_bytes(16));
+    $fileName = 'review_' . $itemId . '_' . $uid . '_' . $safeBase . '.' . $ext;
+    $destAbs  = $uploadDirAbs . '/' . $fileName;
+
+    if (!move_uploaded_file($tmpPath, $destAbs)) {
+        setFlash('error', 'Could not save uploaded image.');
+        redirect(SITE_URL . '/item.php?id=' . $itemId);
+    }
+
+    // Store relative web path in DB
+    $imagePath = 'uploads/reviews/' . $fileName;
+}
+
 // Insert review (unique constraint prevents duplicates)
 $stmt = $conn->prepare("
-    INSERT INTO reviews (item_id, request_id, reviewer_id, reviewee_id, rating, comment)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO reviews (item_id, request_id, reviewer_id, reviewee_id, rating, comment, image)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
 ");
-$stmt->bind_param('iiiiis', $itemId, $requestId, $uid, $revieweeId, $rating, $comment);
+$stmt->bind_param('iiiiiss', $itemId, $requestId, $uid, $revieweeId, $rating, $comment, $imagePath);
 
 if ($stmt->execute()) {
     setFlash('success', 'Thanks! Your review was submitted.');

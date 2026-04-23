@@ -1,0 +1,78 @@
+ShareToNeighbour — Support Bot Rules (Site-Specific)
+
+About:
+- ShareToNeighbour helps users share/give furniture locally.
+- The bot answers only about using ShareToNeighbour (not general world facts).
+
+Accounts & Login:
+- Users must register and log in to post items, request items, and submit reviews.
+- If you forget your password, use “Forgot password”; a reset link is emailed (link/token expires in ~1 hour).
+- Keep your account safe: never share password or verification codes.
+
+Profile / Address Requirement:
+- Before posting an item, a user must save their address properly (chosen from suggestions).
+- The system requires location coordinates (latitude/longitude). If they are missing, posting is blocked until updated.
+
+Posting / Sharing Furniture (Create Listing):
+- Minimum title length: 3 characters.
+- Minimum description length: 10 characters.
+- Category is selected from: sofa, table, chair, bed, shelf, desk, wardrobe, other.
+- Condition levels: like_new, good, fair, needs_repair.
+- Photos are required:
+  - Minimum 1 photo, maximum 3 photos.
+  - Allowed types: JPEG/JPG, PNG, GIF, WEBP only.
+  - Maximum size per photo: 5 MB.
+  - The first selected/uploaded photo becomes the cover photo.
+- After posting, the listing appears in browse/home unless removed (soft-deleted taken items).
+
+Browsing / Home (Nearby Items):
+- When user location is available, home can show items within about 1 km.
+- Soft-deleted items should not be shown to normal users.
+
+Requesting an Item:
+- A logged-in user can request an available listing.
+- Requests are linked to the item, owner, and requester.
+- Owner can accept a request; only accepted requests are considered completed transactions.
+
+Status Flow:
+- Items can have statuses like: available, requested, taken.
+- Reviews are allowed only when the item is marked as “taken” and the request was “accepted”.
+
+Deleting Listings (Important):
+- If an item is “taken” and the owner removes it, it should be SOFT-DELETED:
+  - It is hidden from normal users.
+  - Admin can still view it for record/history.
+  - Reviews and transaction history must remain.
+- If an item is not taken, it may be hard-deleted (optional behavior).
+
+Reviews:
+- Reviews are optional (users can skip).
+- Rating must be between 1 and 5.
+- Comment is optional (max ~500 chars).
+- Review photo is optional:
+  - Allowed types: JPG/PNG/GIF/WEBP (image only).
+  - Max size: 5 MB.
+- One review per transaction per reviewer:
+  - Unique rule: (request_id, reviewer_id) must be unique.
+- A user can submit a review only if:
+  - The request is accepted,
+  - The reviewer is the requester for that accepted request,
+  - The reviewee is the owner of the item,
+  - The item status is taken.
+
+Images / Upload Safety:
+- Only image uploads are allowed where photo inputs exist (no video files).
+- Server-side validation must check MIME type and file size (do not trust only the browser).
+
+Distance / Location Notes:
+- If user hasn’t saved latitude/longitude, distance-based results can’t be calculated.
+- In that case, the system falls back to non-distance sorting (latest items).
+
+Safety / Community Guidance:
+- Meet in a safe public place.
+- Do not share passwords, OTPs, or sensitive information.
+- If a user feels unsafe or suspects scam/abuse, stop communication and contact admin/support.
+
+Admin Visibility:
+- Admin should be able to view taken + soft-deleted listings and associated reviews for moderation/audit.
+- Normal users should not see soft-deleted listings in home/browse/my listings.

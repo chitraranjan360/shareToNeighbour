@@ -40,6 +40,11 @@ define('UPLOAD_URL',   BASE_URL . '/uploads');
 define('MAX_IMG_WIDTH',  800);
 define('MAX_IMG_HEIGHT', 600);
 
+//Ollama Api
+define('CHATBOT_ENABLED', true);
+define('OLLAMA_URL', 'http://127.0.0.1:11434');
+define('OLLAMA_MODEL', 'llama3.1:8b');
+
 // ── Session ──
 if (session_status() === PHP_SESSION_NONE) {
     session_start();

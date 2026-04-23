@@ -6,7 +6,10 @@ requireUserLogin();
 
 $uid = currentUserId();
 
-$stmt = $conn->prepare("SELECT * FROM furniture_items WHERE user_id = ? ORDER BY created_at DESC");
+$stmt = $conn->prepare("SELECT * FROM furniture_items WHERE 
+ user_id = ? 
+ AND is_deleted = 0
+ ORDER BY created_at DESC");
 $stmt->bind_param('i', $uid);
 $stmt->execute();
 $myItems = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -47,22 +50,22 @@ require_once __DIR__ . '/../includes/header.php';
   <div class="row g-4">
     <?php foreach ($myItems as $item): ?>
       <?php
-        $status = $item['status'] ?? 'available';
-        $badgeClass = match ($status) {
-          'available' => 'pill-primary',
-          'requested' => 'pill-warning',
-          'taken'     => 'pill-danger',
-          default     => 'pill-secondary'
-        };
+      $status = $item['status'] ?? 'available';
+      $badgeClass = match ($status) {
+        'available' => 'pill-primary',
+        'requested' => 'pill-warning',
+        'taken'     => 'pill-danger',
+        default     => 'pill-secondary'
+      };
       ?>
       <div class="col-12 col-md-6 col-lg-4">
         <div class="listing-card-wrap h-100">
-          <!-- Fully clickable card -->
+          <!--  clickable card -->
           <a class="listing-card-link text-decoration-none" href="<?= SITE_URL ?>/item.php?id=<?= (int)$item['id'] ?>">
             <div class="listing-card-img">
               <img src="<?= UPLOAD_URL . '/' . h($item['photo'] ?: 'placeholder.jpg') ?>"
-                   alt="<?= h($item['title']) ?>"
-                   class="w-100 h-100 object-fit-cover">
+                alt="<?= h($item['title']) ?>"
+                class="w-100 h-100 object-fit-cover">
             </div>
 
             <div class="p-3">
@@ -75,45 +78,33 @@ require_once __DIR__ . '/../includes/header.php';
                 <?= h(mb_strimwidth($item['description'] ?? '', 0, 90, '…')) ?>
               </p>
 
-              <div class="d-flex justify-content-between align-items-center">
-                <span class="text-muted small">
-                  <i class="bi bi-clock"></i>
-                  <?= date('M j, Y', strtotime($item['created_at'])) ?>
-                </span>
-                <span class="text-muted small d-inline-flex align-items-center gap-1">
-                  Open <i class="bi bi-chevron-right"></i>
-                </span>
-              </div>
             </div>
           </a>
 
           <!-- Options dropdown (three dots) -->
           <div class="listing-actions dropdown">
-            <button class="btn btn-light btn-sm icon-btn shadow-sm"
-                    type="button"
-                    data-bs-toggle="dropdown"
-                    aria-expanded="false"
-                    aria-label="Listing options"
-                    onclick="event.stopPropagation();">
+            <button class="btn btn-light btn-sm rounded shadow-sm"
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+              aria-label="Listing options"
+              onclick="event.stopPropagation();">
               <i class="bi bi-three-dots-vertical"></i>
             </button>
 
-            <ul class="dropdown-menu dropdown-menu-end shadow-extra-sm">
-              <li>
-                <a class="dropdown-item" href="<?= SITE_URL ?>/item.php?id=<?= (int)$item['id'] ?>">
-                  <i class="bi bi-eye me-2"></i> View
-                </a>
-              </li>
+            <ul class="dropdown-menu dropdown-menu-end shadow-extra-sm rounded-3 ">
               <li>
                 <a class="dropdown-item" href="<?= SITE_URL ?>/edit_item.php?id=<?= (int)$item['id'] ?>">
                   <i class="bi bi-pencil me-2"></i> Edit
                 </a>
               </li>
-              <li><hr class="dropdown-divider"></li>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
               <li>
                 <form action="<?= SITE_URL ?>/delete_item.php"
-                      method="POST"
-                      onsubmit="return confirm('Delete this listing permanently?');">
+                  method="POST"
+                  onsubmit="return confirm('Delete this listing permanently?');">
                   <input type="hidden" name="item_id" value="<?= (int)$item['id'] ?>">
                   <button type="submit" class="dropdown-item text-danger">
                     <i class="bi bi-trash me-2"></i> Delete

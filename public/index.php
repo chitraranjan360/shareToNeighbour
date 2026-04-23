@@ -21,6 +21,7 @@ if (isUserLoggedIn()) {
         WHERE r.requester_id = ?
           AND r.status = 'accepted'
           AND fi.status = 'taken'
+          AND fi.is_deleted = 0
           AND rev.id IS NULL
         ORDER BY fi.taken_at DESC, fi.id DESC
         LIMIT 1
@@ -65,7 +66,8 @@ if ($userLat !== null && $userLng !== null) {
         ) AS distance_km
     FROM furniture_items fi
     JOIN users u ON fi.user_id = u.id
-    WHERE fi.status IN ('available','requested','taken')
+    WHERE fi.is_deleted = 0 AND
+    fi.status IN ('available','requested','taken')
       AND fi.user_id <> ?
       AND u.latitude IS NOT NULL AND u.longitude IS NOT NULL
     HAVING distance_km <= 1
@@ -79,7 +81,8 @@ if ($userLat !== null && $userLng !== null) {
         SELECT fi.*, u.username, NULL AS distance_km
         FROM furniture_items fi
         JOIN users u ON fi.user_id = u.id
-        WHERE fi.status IN ('available','requested','taken')
+        WHERE fi.is_deleted = 0 AND 
+        fi.status IN ('available','requested','taken')
         ORDER BY fi.created_at DESC
         LIMIT 9
     ");
@@ -230,9 +233,7 @@ $stmt->close();
                             </p>
                             <div class="d-flex justify-content-between align-items-center text-muted small">
                                 <span><i class="bi bi-person"></i> <?= h($item['username']) ?></span>
-                                <span class="d-inline-flex align-items-center gap-1">
-                                    <i class="bi bi-chevron-right"></i> View
-                                </span>
+
                             </div>
                         </div>
                     </a>
@@ -259,60 +260,62 @@ $stmt->close();
         </div>
     </div>
 </section>
-<!-- Force review modal (if needed) -->
-<?php if ($forceReview && $pendingReview): ?>
-    <div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-sm modal-dialog-centered">
-            <form method="POST" action="<?= SITE_URL ?>/submit_review.php" class="modal-content">
-                <div class="modal-header py-2">
-                    <h6 class="modal-title mb-0">Review required</h6>
-                </div>
-
-                <div class="modal-body">
-                    <p class="small mb-2">
-                        Please review your completed transaction:
-                    </p>
-                    <div class="small fw-semibold mb-3"><?= h($pendingReview['title']) ?></div>
-
-                    <input type="hidden" name="item_id" value="<?= (int)$pendingReview['item_id'] ?>">
-                    <input type="hidden" name="request_id" value="<?= (int)$pendingReview['request_id'] ?>">
-                    <input type="hidden" name="reviewee_id" value="<?= (int)$pendingReview['owner_id'] ?>">
-
-                    <div class="mb-2">
-                        <label class="form-label small mb-1">Rating *</label>
-                        <select class="form-select form-select-sm" name="rating" required>
-                            <option value="">Select…</option>
-                            <option value="5">5 - Excellent</option>
-                            <option value="4">4 - Good</option>
-                            <option value="3">3 - OK</option>
-                            <option value="2">2 - Bad</option>
-                            <option value="1">1 - Very bad</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-0">
-                        <label class="form-label small mb-1">Comment (optional)</label>
-                        <textarea class="form-control form-control-sm" name="comment" rows="2" maxlength="500"></textarea>
-                    </div>
-                </div>
-
-                <div class="modal-footer py-2">
-                    <button type="submit" class="btn btn-success btn-sm w-100">Submit</button>
-                </div>
-            </form>
+<!--  review modal (if needed) -->
+ <?php if ($forceReview && $pendingReview): ?>
+  <div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+      <form method="POST" action="<?= SITE_URL ?>/submit_review.php" enctype="multipart/form-data" class="modal-content">
+        <div class="modal-header py-2">
+          <h6 class="modal-title mb-0">Leave a review (optional)</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-    </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const modalEl = document.getElementById('reviewModal');
-            const modal = new bootstrap.Modal(modalEl, {
-                backdrop: 'static',
-                keyboard: false
-            });
-            modal.show();
-        });
-    </script>
+        <div class="modal-body">
+          <p class="small mb-2">Please review your completed transaction:</p>
+          <div class="small fw-semibold mb-3"><?= h($pendingReview['title']) ?></div>
+
+          <input type="hidden" name="item_id" value="<?= (int)$pendingReview['item_id'] ?>">
+          <input type="hidden" name="request_id" value="<?= (int)$pendingReview['request_id'] ?>">
+          <input type="hidden" name="reviewee_id" value="<?= (int)$pendingReview['owner_id'] ?>">
+
+          <div class="mb-2">
+            <label class="form-label small mb-1">Rating *</label>
+            <select class="form-select form-select-sm" name="rating" required>
+              <option value="">Select…</option>
+              <option value="5">5 - Excellent</option>
+              <option value="4">4 - Good</option>
+              <option value="3">3 - OK</option>
+              <option value="2">2 - Bad</option>
+              <option value="1">1 - Very bad</option>
+            </select>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label small mb-1">Comment (optional)</label>
+            <textarea class="form-control form-control-sm" name="comment" rows="2" maxlength="500"></textarea>
+          </div>
+
+          <div class="mb-0">
+            <label class="form-label small mb-1">Photo (optional)</label>
+            <input type="file" name="photo" accept="image/*" class="form-control form-control-sm mt-2">
+          </div>
+        </div>
+
+        <div class="modal-footer py-2 d-flex flex-column gap-2">
+          <button type="submit" class="btn btn-success btn-sm w-100">Submit</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm w-100" data-bs-dismiss="modal">Skip for now</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const modalEl = document.getElementById('reviewModal');
+      const modal = new bootstrap.Modal(modalEl, { backdrop: true, keyboard: true });
+      modal.show();
+    });
+  </script>
 <?php endif; ?>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
