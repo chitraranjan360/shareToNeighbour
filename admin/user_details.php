@@ -314,6 +314,50 @@ $isActive = ((int)($user['is_active'] ?? 1) === 1);
               <?php endforeach; ?>
               </tbody>
             </table>
+
+            </div>
+            <!-- User's Items -->
+             <hr>
+             <div class="table-responsive">
+              <h5 class="mb-3"><i class="bi bi-box-seam"></i> User's Items</h5>
+             
+            <table class="table table-hover align-middle admin-table rounded">
+
+              <thead>
+                <tr>
+                  <th style="width: 60px;">ID</th>
+                  <th style="width: 60px;">Photo</th>
+                  <th>Title</th>
+                  <th style="width: 120px;">Category</th>
+                  <th style="width: 120px;">Status</th>
+                  <th style="width: 130px;">Posted</th>
+                </tr>
+              </thead>
+              <tbody>
+              <?php
+              // Fetch items posted by this user
+              $stmt = $conn->prepare("SELECT id, title, category, photo, status, created_at FROM furniture_items WHERE user_id = ? ORDER BY created_at DESC");
+              $stmt->bind_param('i', $userId);
+              $stmt->execute();
+              $items = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+              $stmt->close();
+
+              // Display each item or show empty state if none exist
+              if (empty($items)): ?>
+                <tr><td colspan="7" class="text-center text-muted py-4">No items posted by this user.</td></tr>
+              <?php else: foreach ($items as $item): ?>
+                <tr>
+                  <td class="fw-semibold"><?= (int)$item['id'] ?></td>
+                  <td><img src="<?= UPLOAD_URL . '/' . h($item['photo'] ?: 'placeholder.jpg') ?>" alt="<?= h($item['title']) ?>" class="rounded-3 border" style="width:56px;height:56px;object-fit:cover;"></td>
+                  <td><?= h($item['title']) ?></td>
+                  <td><span class="badge text-bg-success-subtle border border-success-subtle text-success-emphasis"><?= h(ucfirst($item['category'])) ?></span></td>
+                  <td><span class="badge bg-<?= $item['status']==='available'?'primary':($item['status']==='requested'?'warning text-dark':'secondary') ?>"><?= h(ucfirst($item['status'])) ?></span></td>
+                  <td><small class="text-body-secondary"><?= date('M j, Y', strtotime($item['created_at'])) ?></small></td>
+                </tr>
+              <?php endforeach; endif; ?>
+              </tbody>
+            </table>
+            
           </div>
         <?php endif; ?>
       </div>

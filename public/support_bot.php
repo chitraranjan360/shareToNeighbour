@@ -33,6 +33,7 @@ $user = currentUserName();
 $payload = [
     'model' => OLLAMA_MODEL,
     'stream' => false,
+    'options' => ['num_predict' => 200],
     'messages' => [
         ['role' => 'system', 'content' => $system],
         ['role' => 'user', 'content' => "User: {$user}\nQuestion: {$msg}"]
@@ -57,6 +58,7 @@ curl_close($ch);
 
 if ($res === false || $code < 200 || $code >= 300) {
     http_response_code(502);
+    error_log("BOT_FAIL HTTP=$code ERR=" . ($err ?: 'none') . " RES=" . substr((string)$res, 0, 300));
     echo json_encode(['error' => 'Bot backend error', 'detail' => $err ?: $res]);
     exit;
 }

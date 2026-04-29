@@ -65,9 +65,7 @@ $items = $stmt->get_result()->fetch_all(MYSQLI_ASSOC); $stmt->close();
         <tr>
             <td class="fw-semibold"><?= (int)$item['id'] ?></td>
             <td><img src="<?= UPLOAD_URL . '/' . h($item['photo'] ?: 'placeholder.jpg') ?>" alt="<?= h($item['title']) ?>" class="rounded-3 border" style="width:56px;height:56px;object-fit:cover;"></td>
-            <td>
-                <a href="<?= SITE_URL ?>/item.php?id=<?= (int)$item['id'] ?>" target="_blank" class="text-decoration-none fw-semibold"><?= h($item['title']) ?></a>
-            </td>
+            <td>  <?= h($item['title']) ?> </td>
             <td><span class="badge text-bg-success-subtle border border-success-subtle text-success-emphasis"><?= h(ucfirst($item['category'])) ?></span></td>
             <td><?= h($item['username']) ?></td>
             <td><span class="badge bg-<?= $item['status']==='available'?'primary':($item['status']==='requested'?'warning text-dark':'secondary') ?>"><?= h(ucfirst($item['status'])) ?></span></td>

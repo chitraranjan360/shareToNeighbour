@@ -45,7 +45,7 @@
 
 </footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<?= SITE_URL ?>../public/js/app.js"></script>
+<script src="<?= SITE_URL ?>/js/app.js"></script>
 <script>
   (function() {
     const CURRENT_USER_ID = <?= isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0 ?>;

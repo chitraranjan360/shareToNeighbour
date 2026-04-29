@@ -35,6 +35,7 @@ define('SITE_NAME',    'ShareToNeighbour');
 define('BASE_URL',     $protocol . '://' . $host . $projectRoot);
 define('SITE_URL',     BASE_URL . '/public');
 define('ADMIN_URL',    BASE_URL . '/admin');
+define('Super_admin_URL', BASE_URL . '/super_admin');
 define('UPLOAD_DIR',   __DIR__ . '/../uploads/');
 define('UPLOAD_URL',   BASE_URL . '/uploads');
 define('MAX_IMG_WIDTH',  800);
@@ -43,7 +44,8 @@ define('MAX_IMG_HEIGHT', 600);
 //Ollama Api
 define('CHATBOT_ENABLED', true);
 define('OLLAMA_URL', 'http://127.0.0.1:11434');
-define('OLLAMA_MODEL', 'llama3.1:8b');
+//define('OLLAMA_MODEL', 'llama3.1:8b');
+define('OLLAMA_MODEL', 'llama3.2:3b'); //lestest model
 
 // ── Session ──
 if (session_status() === PHP_SESSION_NONE) {

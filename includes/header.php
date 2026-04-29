@@ -105,7 +105,7 @@ if (isUserLoggedIn()) {
                 <?php else: ?>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-person-circle"></i><span>Account</span>
+                            <i class="bi bi-person-circle"></i><span>Sign In</span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                             <li><a class="dropdown-item" href="<?= SITE_URL ?>/login.php"><i class="bi bi-box-arrow-in-right me-2"></i>Login</a></li>

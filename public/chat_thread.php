@@ -145,16 +145,16 @@ $initial = strtoupper(substr($name, 0, 1));
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<div class="chat-shell">
-    <div class="chat-card">
-        <div class="chat-header d-flex align-items-center justify-content-between">
+<div class="chat-shell container py-4">
+    <div class="chat-card card mx-auto shadow-sm" style="max-width:900px;">
+        <div class="chat-header card-header d-flex align-items-center justify-content-between py-3">
             <div class="d-flex align-items-center gap-2">
-                <div class="avatar">
+                <div class="avatar rounded-circle bg-secondary text-white d-inline-flex align-items-center justify-content-center fw-bold me-2" style="width:48px;height:48px;">
                     <?= h($initial) ?>
                     <span id="presenceDot" class="presence-dot <?= ((int)$otherUser['is_online'] === 1 ? 'presence-on' : 'presence-off') ?>"></span>
                 </div>
                 <div>
-                    <div class="fw-semibold"><?= h($name) ?></div>
+                    <div class="fw-semibold mb-0"><?= h($name) ?></div>
                     <small id="presenceText" class="text-muted">
                         <?= ((int)$otherUser['is_online'] === 1) ? 'Online' : ('Last seen: ' . h($otherUser['last_seen'] ?? 'unknown')) ?>
                     </small>
@@ -173,16 +173,16 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         <?php endif; ?>
 
-        <div class="chat-body" id="chatBody">
+        <div class="chat-body overflow-auto p-3 d-flex flex-column" id="chatBody" style="max-height:60vh;">
             <?php foreach ($messages as $m): ?>
                 <?php $mine = ((int)$m['sender_id'] === $uid); ?>
-                <div class="msg-row <?= $mine ? 'mine' : 'theirs' ?>" data-message-id="<?= (int)$m['id'] ?>">
-                    <div>
-                        <div class="msg-bubble"><?= h($m['body']) ?></div>
-                        <div class="msg-time">
+                <div class="msg-row <?= $mine ? 'mine d-flex justify-content-end' : 'theirs d-flex justify-content-start' ?> mb-2" data-message-id="<?= (int)$m['id'] ?>">
+                    <div class="d-inline-block">
+                        <div class="msg-bubble p-2 rounded-3 shadow-sm <?= $mine ? 'bg-primary text-white' : 'bg-light text-dark' ?>"><?= h($m['body']) ?></div>
+                        <div class="msg-time small text-muted mt-1 text-end">
                             <?= date('M j, H:i', strtotime($m['created_at'])) ?>
                             <?php if ($mine): ?>
-                                <span class="tick" id="tick-<?= (int)$m['id'] ?>">
+                                <span class="tick ms-2" id="tick-<?= (int)$m['id'] ?>">
                                     <?= ((int)$m['is_read'] === 1) ? '✓✓' : '✓' ?>
                                 </span>
                             <?php endif; ?>
@@ -192,7 +192,7 @@ require_once __DIR__ . '/../includes/header.php';
             <?php endforeach; ?>
         </div>
 
-        <div class="chat-footer">
+        <div class="chat-footer card-footer bg-white border-top-0">
             <form method="POST" id="chatForm" class="d-flex gap-2" autocomplete="off" novalidate>
                 <textarea name="body" id="bodyInput" class="form-control chat-input" rows="2" required placeholder="Type your message..."></textarea>
                 <div class="invalid-feedback">
@@ -206,12 +206,13 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<script src="js/app.js"></script>
+<script src="<?= SITE_URL ?>/js/app.js"></script>
 <script>
     //This section handle real time chat section
     const CURRENT_USER_ID = <?= (int)$uid ?>;
     const OTHER_USER_ID = <?= (int)$otherUserId ?>;
-    const WS_HOST = "192.168.1.111"; // adjust to your WebSocket server host
+    //const WS_HOST = "192.168.1.111"; // adjust to your WebSocket server host
+    const WS_HOST = window.location.hostname; //use current host server
     let ws = null;
 
     const pendingNotify = <?= json_encode(!empty($wsNotify) ? [

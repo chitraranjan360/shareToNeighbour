@@ -115,14 +115,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         $coverPhoto = $photoNames[0];
-        $video_link = null;
+        
 
         $stmt = $conn->prepare("
             INSERT INTO furniture_items
-              (user_id,title,description,category,condition_level,photo,video_link,latitude,longitude)
-            VALUES (?,?,?,?,?,?,?,?,?)
+              (user_id,title,description,category,condition_level,photo,latitude,longitude)
+            VALUES (?,?,?,?,?,?,?,?)
         ");
-        $stmt->bind_param('issssssdd', $uid, $title, $description, $category, $condition, $coverPhoto, $video_link, $lat, $lng);
+        $stmt->bind_param('isssssdd', $uid, $title, $description, $category, $condition, $coverPhoto, $lat, $lng);
 
         if ($stmt->execute()) {
             $itemId = $stmt->insert_id;
@@ -206,17 +206,18 @@ require_once __DIR__ . '/../includes/header.php';
                         </div>
                     <?php endif; ?>
 
-                    <form method="POST" enctype="multipart/form-data" novalidate>
+                    <form id="itemForm" method="POST" enctype="multipart/form-data" novalidate>
                         <div class="row g-4">
 
                             <!-- Title -->
                             <div class="col-12">
                                 <label class="form-label fw-semibold">Item Title <span class="text-danger">*</span></label>
-                                <div class="input-group input-group-lg">
+                                <div class="input-group">
                                     <span class="input-group-text bg-light"><i class="bi bi-type"></i></span>
                                     <input type="text" class="form-control" name="title" value="<?= h($title) ?>" required
                                         placeholder="e.g. Oak dining table">
                                 </div>
+                                <div id="titleFeedback" class="invalid-feedback d-none">Title must be at least 3 characters.</div>
                             </div>
 
                             <!-- Description -->
@@ -224,9 +225,10 @@ require_once __DIR__ . '/../includes/header.php';
                                 <label class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light align-items-start pt-3"><i class="bi bi-card-text"></i></span>
-                                    <textarea class="form-control" name="description" rows="5" required
+                                    <textarea class="form-control" id="description" name="description" rows="4" required
                                         placeholder="Add size, condition, pickup notes, etc."><?= h($description) ?></textarea>
                                 </div>
+                                <div id="descriptionFeedback" class="invalid-feedback d-none">Description must be at least 10 characters.</div>
                                 <div class="form-text">Tip: include dimensions and pickup time window.</div>
                             </div>
 
@@ -260,7 +262,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <div class="col-12">
                                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                                     <label class="form-label fw-semibold mb-0">Photos (up to 3) <span class="text-danger">*</span></label>
-                                    <span class="badge rounded-pill text-bg-light border">Cover = first selected</span>
+                                
                                 </div>
 
                                 <div class="upload-drop border rounded-4 p-3 p-md-4 mt-2 bg-light">
@@ -279,9 +281,9 @@ require_once __DIR__ . '/../includes/header.php';
                                             </label>
                                         </div>
                                     </div>
-
+                                    <div id="photosFeedback" class="invalid-feedback d-none mt-2">Please upload 1 to 3 images (JPEG/PNG/GIF/WEBP), each ≤ 5 MB.</div>
                                     <div class="form-text mt-2 mb-0">
-                                        Upload up to 3 images. The first selected image becomes the cover.
+                                        Minimum 1 and maximum 3 images. The first selected image becomes the cover.
                                     </div>
                                 </div>
 
@@ -307,6 +309,12 @@ require_once __DIR__ . '/../includes/header.php';
     (function() {
         const input = document.getElementById('photos');
         const preview = document.getElementById('photoPreview');
+        const form = document.getElementById('itemForm');
+        const titleInput = form.querySelector('input[name="title"]');
+        const descInput = document.getElementById('description');
+        const titleFb = document.getElementById('titleFeedback');
+        const descFb = document.getElementById('descriptionFeedback');
+        const photosFb = document.getElementById('photosFeedback');
 
         function render() {
             preview.innerHTML = '';
@@ -337,15 +345,112 @@ require_once __DIR__ . '/../includes/header.php';
             });
         }
 
+        function showFilesError(msg) {
+            photosFb.textContent = msg;
+            photosFb.classList.remove('d-none');
+            photosFb.classList.add('d-block');
+            input.classList.add('is-invalid');
+        }
+
+        function clearFilesError() {
+            photosFb.textContent = '';
+            photosFb.classList.remove('d-block');
+            photosFb.classList.add('d-none');
+            input.classList.remove('is-invalid');
+        }
+
+        function validateFiles(filesArray) {
+            if (!filesArray || filesArray.length === 0) return 'Please upload at least 1 photo.';
+            if (filesArray.length > 3) return 'Please select maximum 3 images.';
+            const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            for (let f of filesArray) {
+                if (!allowed.includes(f.type)) return 'Only JPEG, PNG, GIF, WEBP allowed.';
+                if (f.size > 5242880) return 'Each image must be under 5 MB.';
+            }
+            return null;
+        }
+
+        function setInvalid(el, fbEl, msg) {
+            el.classList.add('is-invalid');
+            fbEl.textContent = msg;
+            fbEl.classList.remove('d-none');
+            fbEl.classList.add('d-block');
+        }
+
+        function clearInvalid(el, fbEl) {
+            el.classList.remove('is-invalid');
+            fbEl.textContent = '';
+            fbEl.classList.remove('d-block');
+            fbEl.classList.add('d-none');
+        }
+
         input.addEventListener('change', () => {
-            if (input.files && input.files.length > 3) {
-                alert('Please select maximum 3 images.');
-                input.value = '';
+            const files = input.files ? Array.from(input.files) : [];
+            const err = validateFiles(files);
+            if (err) {
+                showFilesError(err);
                 preview.innerHTML = '';
                 return;
             }
+            clearFilesError();
             render();
         });
+
+        form.addEventListener('submit', function(e) {
+            let hasError = false;
+
+            const titleVal = titleInput.value.trim();
+            const descVal = descInput.value.trim();
+            const files = input.files ? Array.from(input.files) : [];
+
+            if (titleVal.length < 3) {
+                setInvalid(titleInput, titleFb, 'Title must be at least 3 characters.');
+                hasError = true;
+            } else {
+                clearInvalid(titleInput, titleFb);
+            }
+
+            if (descVal.length < 10) {
+                setInvalid(descInput, descFb, 'Description must be at least 10 characters.');
+                hasError = true;
+            } else {
+                clearInvalid(descInput, descFb);
+            }
+
+            const fileErr = validateFiles(files);
+            if (fileErr) {
+                setInvalid(input, photosFb, fileErr);
+                hasError = true;
+            } else {
+                clearInvalid(input, photosFb);
+            }
+
+            if (hasError) {
+                e.preventDefault();
+                const top = form.getBoundingClientRect().top + window.scrollY - 80;
+                window.scrollTo({ top, behavior: 'smooth' });
+            }
+        });
+
+        titleInput.addEventListener('input', () => {
+            if (titleInput.classList.contains('is-invalid') && titleInput.value.trim().length >= 3) {
+                clearInvalid(titleInput, titleFb);
+            }
+        });
+
+        descInput.addEventListener('input', () => {
+            if (descInput.classList.contains('is-invalid') && descInput.value.trim().length >= 10) {
+                clearInvalid(descInput, descFb);
+            }
+        });
+
+        input.addEventListener('change', () => {
+            if (input.classList.contains('is-invalid')) {
+                const err = validateFiles(input.files ? Array.from(input.files) : []);
+                if (!err) clearInvalid(input, photosFb);
+            }
+        });
+
     })();
 </script>
 

@@ -69,17 +69,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <input type="password" class="form-control form-control-lg" name="password" required>
                         </div>
                         <button type="submit" class="btn btn-warning w-100 fw-semibold py-2">
-                            <i class="bi bi-shield-check"></i> Admin Login
+                            <i class="bi bi-shield-check"></i>Login
                         </button>
                     </form>
 
                     <hr class="my-4">
                     <p class="text-center small text-body-secondary mb-0">
                         <a href="<?= SITE_URL ?>/index.php">← Back to main site</a>
-                    </p>
-                    <p class="text-center small text-body-secondary mt-2 mb-0">
-                       <a href="register.php">Register as Admin</a> 
-                    </p>
+                    </p>    
                 </div>
             </div>
         </div>

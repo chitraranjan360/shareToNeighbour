@@ -261,61 +261,78 @@ $stmt->close();
     </div>
 </section>
 <!--  review modal (if needed) -->
- <?php if ($forceReview && $pendingReview): ?>
-  <div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-sm modal-dialog-centered">
-      <form method="POST" action="<?= SITE_URL ?>/submit_review.php" enctype="multipart/form-data" class="modal-content">
-        <div class="modal-header py-2">
-          <h6 class="modal-title mb-0">Leave a review (optional)</h6>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<?php if ($forceReview && $pendingReview): ?>
+    <style>
+        .review-stars .btn-check { display: none; }
+        .review-star-btn {
+            width: 44px; height: 44px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 0; border-width: 1px; font-size: 1rem;
+            transition: transform .12s ease, box-shadow .12s ease;
+        }
+        .review-star-btn .bi { color: #ffc107; opacity: .28; font-size: 1.05rem; }
+        .review-stars .btn-check:checked + .review-star-btn .bi { opacity: 1; transform: scale(1.06); }
+        .review-star-btn:hover { transform: scale(1.05); box-shadow: 0 2px 6px rgba(0,0,0,.08); }
+        .review-stars { gap: .5rem; }
+    </style>
+
+    <div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <form method="POST" action="<?= SITE_URL ?>/submit_review.php" enctype="multipart/form-data" class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title mb-0">Review your transaction</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="small text-muted mb-2">We’d appreciate a brief rating to help other neighbours make informed choices.</p>
+                    <div class="small fw-semibold mb-3"><?= h($pendingReview['title']) ?></div>
+
+                    <input type="hidden" name="item_id" value="<?= (int)$pendingReview['item_id'] ?>">
+                    <input type="hidden" name="request_id" value="<?= (int)$pendingReview['request_id'] ?>">
+                    <input type="hidden" name="reviewee_id" value="<?= (int)$pendingReview['owner_id'] ?>">
+
+                    <div class="mb-3">
+                        <label class="form-label small mb-2 d-block">Your rating *</label>
+                        <div class="review-stars d-flex" role="radiogroup" aria-label="Rating">
+                            <?php for ($star = 5; $star >= 1; $star--): ?>
+                                <input class="btn-check" type="radio" name="rating" id="reviewStar<?= $star ?>" value="<?= $star ?>" required>
+                                <label class="btn btn-outline-warning review-star-btn" for="reviewStar<?= $star ?>" title="<?= $star ?> star<?= $star > 1 ? 's' : '' ?>">
+                                    <i class="bi bi-star-fill" aria-hidden="true"></i>
+                                    <span class="visually-hidden"><?= $star ?> star<?= $star > 1 ? 's' : '' ?></span>
+                                </label>
+                            <?php endfor; ?>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Comment (optional)</label>
+                        <textarea class="form-control form-control-sm" name="comment" rows="2" maxlength="500" placeholder="Share any details that would help others (optional)"></textarea>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label small mb-1">Photo (optional)</label>
+                        <div class="small text-muted mt-1">Attach a photo only if it supports your feedback (e.g. damage).</div>
+                        <input type="file" name="photo" accept="image/*" class="form-control form-control-sm mt-2">
+                    </div>
+                </div>
+
+                <div class="modal-footer py-2 d-flex flex-column gap-2">
+                    <button type="submit" class="btn btn-success btn-sm w-100">Submit review</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm w-100" data-bs-dismiss="modal">Remind me later</button>
+                </div>
+            </form>
         </div>
-
-        <div class="modal-body">
-          <p class="small mb-2">Please review your completed transaction:</p>
-          <div class="small fw-semibold mb-3"><?= h($pendingReview['title']) ?></div>
-
-          <input type="hidden" name="item_id" value="<?= (int)$pendingReview['item_id'] ?>">
-          <input type="hidden" name="request_id" value="<?= (int)$pendingReview['request_id'] ?>">
-          <input type="hidden" name="reviewee_id" value="<?= (int)$pendingReview['owner_id'] ?>">
-
-          <div class="mb-2">
-            <label class="form-label small mb-1">Rating *</label>
-            <select class="form-select form-select-sm" name="rating" required>
-              <option value="">Select…</option>
-              <option value="5">5 - Excellent</option>
-              <option value="4">4 - Good</option>
-              <option value="3">3 - OK</option>
-              <option value="2">2 - Bad</option>
-              <option value="1">1 - Very bad</option>
-            </select>
-          </div>
-
-          <div class="mb-2">
-            <label class="form-label small mb-1">Comment (optional)</label>
-            <textarea class="form-control form-control-sm" name="comment" rows="2" maxlength="500"></textarea>
-          </div>
-
-          <div class="mb-0">
-            <label class="form-label small mb-1">Photo (optional)</label>
-            <input type="file" name="photo" accept="image/*" class="form-control form-control-sm mt-2">
-          </div>
-        </div>
-
-        <div class="modal-footer py-2 d-flex flex-column gap-2">
-          <button type="submit" class="btn btn-success btn-sm w-100">Submit</button>
-          <button type="button" class="btn btn-outline-secondary btn-sm w-100" data-bs-dismiss="modal">Skip for now</button>
-        </div>
-      </form>
     </div>
-  </div>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const modalEl = document.getElementById('reviewModal');
-      const modal = new bootstrap.Modal(modalEl, { backdrop: true, keyboard: true });
-      modal.show();
-    });
-  </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const modalEl = document.getElementById('reviewModal');
+            if (!modalEl) return;
+            const modal = new bootstrap.Modal(modalEl, { backdrop: true, keyboard: true });
+            modal.show();
+        });
+    </script>
 <?php endif; ?>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
