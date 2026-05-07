@@ -34,11 +34,12 @@ jobs:
         run: composer validate --no-check-publish && composer install --prefer-dist --no-progress
 
 
-      - name: Upload artifact for deployment job
+            - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: php-app
           path: .
+          if-no-files-found: error
 
   deploy:
     runs-on: ubuntu-latest

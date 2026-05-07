@@ -127,7 +127,7 @@ class ChatSocket implements MessageComponentInterface {
 
 $server = IoServer::factory(
     new HttpServer(new WsServer(new ChatSocket())),
-    8080, '0.0.0.0' // adjust to your WebSocket server host
+    8080, '0.0.0.0' 
 );
 
 echo "WebSocket server started at ws://0.0.0.0:8080\n";
