@@ -277,7 +277,7 @@ $stmt->close();
     </style>
 
     <div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered">
             <form method="POST" action="<?= SITE_URL ?>/submit_review.php" enctype="multipart/form-data" class="modal-content">
                 <div class="modal-header py-2">
                     <h6 class="modal-title mb-0">Review your transaction</h6>
@@ -307,13 +307,12 @@ $stmt->close();
 
                     <div class="mb-2">
                         <label class="form-label small mb-1">Comment (optional)</label>
-                        <textarea class="form-control form-control-sm" name="comment" rows="2" maxlength="500" placeholder="Share any details that would help others (optional)"></textarea>
+                        <textarea class="form-control form-control-sm" name="comment" rows="2" maxlength="500" placeholder="Share any details that would help others"></textarea>
                     </div>
 
                     <div class="mb-0">
                         <label class="form-label small mb-1">Photo (optional)</label>
-                        <div class="small text-muted mt-1">Attach a photo only if it supports your feedback (e.g. damage).</div>
-                        <input type="file" name="photo" accept="image/*" class="form-control form-control-sm mt-2">
+                        <input type="file" name="photo" accept="image/*" class="form-control form-control-sm mt-2" placeholder="Attach a photo only if it supports your feedback (e.g. damage)">
                     </div>
                 </div>
 

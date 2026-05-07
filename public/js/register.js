@@ -6,7 +6,7 @@
  *  - Strong password live validation with coloured strength bar + checklist
  *  - Green border on valid fields, red on invalid
  *  - On submit: block empty / invalid fields and show inline "Please fill this field" messages
- *  - NO disabled-button logic
+ *  
  */
 
 document.addEventListener('DOMContentLoaded', function () {

@@ -25,7 +25,8 @@ $rulesPath = __DIR__ . '/../includes/bot_rules.txt';
 $siteRules = is_file($rulesPath) ? trim(file_get_contents($rulesPath)) : '';
 
 $system =
-"You are ShareToNeighbour Support Bot. Answer ONLY using the site rules below. If not found, say: 'I don't have that info, please contact admin.'\n\n" .
+"You are ShareToNeighbour Support Bot. Answer ONLY using the site rules below. If not found, say: 'I don't have that info, please contact admin.' " .
+"Format replies as short bullet points or numbered steps with line breaks. Avoid long paragraphs.\n\n" .
 "SITE RULES:\n" . $siteRules;
 
 $user = currentUserName();

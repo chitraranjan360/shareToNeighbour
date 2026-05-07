@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hash = password_hash($password, PASSWORD_BCRYPT);
 
         $stmt = $conn->prepare("
-            INSERT INTO users (username, email, password, full_name, postal_code, address, latitude, longitude)
+            INSERT INTO users (username, email, password_hash, full_name, postal_code, address, latitude, longitude)
             VALUES (?,?,?,?,?,?,?,?)
         ");
         $stmt->bind_param('ssssssdd', $username, $email, $hash, $full_name, $postal_code, $address, $lat, $lng);
@@ -155,6 +155,11 @@ require_once __DIR__ . '/../includes/header.php';
                                     id="address_search"
                                     placeholder="e.g. Rådhuspladsen 1, 1550 København">
                             </div>
+                            <div>
+                                <small class="form-text text-muted form-text-sm">
+                                    Start typing your address and select from suggestions.
+                                </small>
+                            </div>
 
 
                             <div id="addressSuggestions" class="list-group mt-1" style="display:none; max-height:200px; overflow-y:auto;">
@@ -168,25 +173,25 @@ require_once __DIR__ . '/../includes/header.php';
                         <div class="col-md-6">
                             <label class="form-label">Postal Code (Denmark) </label>
                             <input type="text" class="form-control form-control-md" id="postal_code" name="postal_code"
-                                value="<?= h($postal_code) ?>" disabled>
+                                value="<?= h($postal_code) ?>" readonly required>
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label">Municipality </label>
                             <input type="text" class="form-control form-control-md" id="municipality" name="municipality"
-                                value="<?= h($municipality) ?>" required disabled>
+                                value="<?= h($municipality) ?>" readonly required >
                         </div>
 
                         <div class="col-md-7">
                             <label class="form-label">Street </label>
                             <input type="text" class="form-control form-control-md" id="street" name="street"
-                                value="<?= h($street) ?>" required disabled>
+                                value="<?= h($street) ?>" readonly required>
                         </div>
 
                         <div class="col-md-5">
                             <label class="form-label">House/Apartment No. </label>
                             <input type="text" class="form-control form-control-md" id="house_number" name="house_number"
-                                value="<?= h($house_number) ?>" required disabled>
+                                value="<?= h($house_number) ?>" readonly required>
                         </div>
 
                         <input type="hidden" id="dawa_id" name="dawa_id" value="<?= h($dawa_id) ?>">

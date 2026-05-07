@@ -272,7 +272,7 @@ require_once __DIR__ . '/../includes/header.php';
                                         </div>
                                         <div class="flex-grow-1">
                                             <div class="fw-semibold">Upload images</div>
-                                            <div class="text-muted small">Choose up to 3 photos. PNG/JPG recommended.</div>
+                                            <div class="text-muted small">Choose up to 3 photos, select multiple images at same time. PNG/JPG recommended.</div>
                                         </div>
                                         <div>
                                             <label class="btn btn-outline-success mb-0">

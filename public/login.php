@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $errors[] = 'Too many login attempts. Please try again later.';
   } else {
 
-    $stmt = $conn->prepare("SELECT id, username, password FROM users WHERE username = ? OR email = ?");
+    $stmt = $conn->prepare("SELECT id, username, password_hash FROM users WHERE username = ? OR email = ?");
     $stmt->bind_param('ss', $username, $username);
     $stmt->execute();
     $user = $stmt->get_result()->fetch_assoc();
@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $errors[] = 'Invalid username or email.';
       $_SESSION['login_attempts']++;
     } else {
-      if (!password_verify($password, $user['password'])) {
+      if (!password_verify($password, $user['password_hash'])) {
         $errors[] = 'Incorrect password.';
         $_SESSION['login_attempts']++;
       } else {

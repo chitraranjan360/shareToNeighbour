@@ -1,48 +1,53 @@
 </main>
 
-<footer class="footer-premium text-light py-5 mt-5">
+<footer class="footer-premium text-light py-5 mt-5" role="contentinfo" aria-label="Site footer">
   <div class="container">
-    <div class="row g-4">
+    <div class="row gy-4">
       <div class="col-md-4">
-        <h5 class="d-flex align-items-center gap-2 mb-3">
-          <span class="brand-icon footer-icon d-inline-flex align-items-center justify-content-center">
-            <i class="bi bi-house-heart-fill"></i>
-          </span>
-          <?= SITE_NAME ?>
-        </h5>
-        <p class="text-muted small mb-0">
-          Connecting Copenhagen neighbours to share and reuse furniture —
-          because sustainability starts next door.
-        </p>
+        <a href="<?= SITE_URL ?>" class="d-inline-flex align-items-center text-decoration-none text-light mb-2">
+          <span class="brand-icon footer-icon d-inline-flex align-items-center justify-content-center me-2"><i class="bi bi-house-heart-fill"></i></span>
+          <span class="fs-5 fw-semibold"><?= SITE_NAME ?></span>
+        </a>
+        <p class="text-muted small mb-2">A local platform to share and reuse furniture in Copenhagen.</p>
+        <p class="text-muted small mb-0">Listings use location to show nearby items. </p>
       </div>
 
-      <div class="col-md-4">
-        <h6 class="text-uppercase small fw-semibold text-white-50">Quick Links</h6>
+      <div class="col-md-2">
+        <h6 class="text-uppercase small fw-semibold text-white-50">Explore</h6>
         <ul class="list-unstyled small mb-0">
-          <li><a href="<?= SITE_URL ?>/browse.php" class="footer-link">Browse Furniture</a></li>
-          <li><a href="<?= SITE_URL ?>/register.php" class="footer-link">Join Community</a></li>
+          <li><a href="<?= SITE_URL ?>/browse.php" class="footer-link">Browse</a></li>
+          <li><a href="<?= SITE_URL ?>/register.php" class="footer-link">Register</a></li>
+          <li><a href="<?= ADMIN_URL ?>/login.php" class="footer-link">Admin</a></li>
         </ul>
       </div>
 
-      <div class="col-md-4">
-        <h6 class="text-uppercase small fw-semibold text-white-50">Admin Access</h6>
+      <div class="col-md-3">
+        <h6 class="text-uppercase small fw-semibold text-white-50">Support & Safety</h6>
         <ul class="list-unstyled small mb-0">
-          <li>
-            <a href="<?= ADMIN_URL ?>/login.php" class="footer-link d-inline-flex align-items-center gap-1">
-              <i class="bi bi-shield-lock"></i> Admin Panel
-            </a>
-          </li>
+          <li><a href="<?= SITE_URL ?>/safety.php" class="footer-link">Safety tips</a></li>
+          <li><a href="<?= SITE_URL ?>/community-guidelines.php" class="footer-link">Community guidelines</a></li>
+          <li><a href="<?= SITE_URL ?>/contact.php" class="footer-link">Contact us</a></li>
+          
+        </ul>
+      </div>
+
+      <div class="col-md-3">
+        <h6 class="text-uppercase small fw-semibold text-white-50">Legal</h6>
+        <ul class="list-unstyled small mb-2">
+          <li><a href="<?= SITE_URL ?>/privacy.php" class="footer-link">Privacy</a></li>
+          <li><a href="<?= SITE_URL ?>/terms.php" class="footer-link">Terms</a></li>
+         
         </ul>
       </div>
     </div>
 
     <hr class="border-secondary opacity-25 my-4">
 
-    <p class="text-center text-muted small mb-0">
-      &copy; <?= date('Y') ?> <?= SITE_NAME ?> — Copenhagen, Denmark
-    </p>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center small text-muted">
+      <div>&copy; <?= date('Y') ?> <?= SITE_NAME ?> — Copenhagen, Denmark</div>
+      <div>Meet in public places. Never share passwords or OTPs.</div>
+    </div>
   </div>
-
 </footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= SITE_URL ?>/js/app.js"></script>
@@ -173,6 +178,18 @@ Chatbot floating button
       background: #f1f3f5;
       margin-right: auto;
     }
+
+    .support-msg p,
+    .support-msg ul,
+    .support-msg ol {
+      margin-bottom: .4rem;
+    }
+
+    .support-msg p:last-child,
+    .support-msg ul:last-child,
+    .support-msg ol:last-child {
+      margin-bottom: 0;
+    }
   </style>
 
   <button id="supportBotBtn" class="btn btn-success shadow">
@@ -204,10 +221,46 @@ Chatbot floating button
       const input = document.getElementById('supportBotInput');
       const send = document.getElementById('supportBotSend');
 
+      function buildBotContent(text) {
+        const container = document.createElement('div');
+        const blocks = String(text || '').split(/\n\s*\n/);
+
+        blocks.forEach((block) => {
+          const lines = block.split(/\n/).map(l => l.trim()).filter(Boolean);
+          if (!lines.length) return;
+
+          const isBullet = lines.every(l => /^[-*]\s+/.test(l));
+          const isNumbered = lines.every(l => /^\d+[.)]\s+/.test(l));
+
+          if (isBullet || isNumbered) {
+            const list = document.createElement(isNumbered ? 'ol' : 'ul');
+            list.className = 'ps-3 mb-2';
+            lines.forEach((line) => {
+              const li = document.createElement('li');
+              li.textContent = line.replace(/^[-*]\s+/, '').replace(/^\d+[.)]\s+/, '');
+              list.appendChild(li);
+            });
+            container.appendChild(list);
+            return;
+          }
+
+          const p = document.createElement('p');
+          p.className = 'mb-2';
+          p.textContent = lines.join(' ');
+          container.appendChild(p);
+        });
+
+        return container;
+      }
+
       function addMsg(text, who) {
         const d = document.createElement('div');
         d.className = 'support-msg ' + (who === 'user' ? 'support-user' : 'support-bot');
-        d.textContent = text;
+        if (who === 'bot') {
+          d.appendChild(buildBotContent(text));
+        } else {
+          d.textContent = text;
+        }
         msgs.appendChild(d);
         msgs.scrollTop = msgs.scrollHeight;
       }
