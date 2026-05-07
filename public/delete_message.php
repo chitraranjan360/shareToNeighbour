@@ -1,24 +1,28 @@
 <?php
+// Deletes a whole chat conversation for the signed-in user.
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/auth.php';
 requireUserLogin();
 
+// Only allow this action from a form submit.
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     redirect(SITE_URL . '/messages.php?tab=inbox');
 }
 
+// Read the current user id and the tab we should return to afterwards.
 $uid = currentUserId();
 $returnTab = preg_replace('/[^a-z]/', '', $_POST['return_tab'] ?? 'inbox');
 if (!in_array($returnTab, ['inbox', 'sent'], true)) {
     $returnTab = 'inbox';
 }
 
-// Accept either a single message_id OR a direct other_user_id
+// The form may send a message id or the other user's id.
 $messageId  = (int)($_POST['message_id']  ?? 0);
 $otherUserId = (int)($_POST['other_user_id'] ?? 0);
 
-// If we only got a message_id, resolve the other participant from that message
+// If only a message id was sent, find the other person in that chat.
 if ($otherUserId <= 0 && $messageId > 0) {
+    // Look up the sender and receiver for that message.
     $stmt = $conn->prepare("SELECT sender_id, receiver_id FROM messages WHERE id = ?");
     $stmt->bind_param('i', $messageId);
     $stmt->execute();
@@ -35,7 +39,7 @@ if ($otherUserId <= 0 && $messageId > 0) {
         redirect(SITE_URL . '/messages.php?tab=' . $returnTab);
     }
 
-    // Identify the other party
+    // Figure out which user is the other side of the chat.
     $otherUserId = ((int)$msg['sender_id'] === $uid)
         ? (int)$msg['receiver_id']
         : (int)$msg['sender_id'];
@@ -46,7 +50,7 @@ if ($otherUserId <= 0) {
     redirect(SITE_URL . '/messages.php?tab=' . $returnTab);
 }
 
-// Delete every message in the conversation between $uid and $otherUserId
+// Delete all messages between these two users.
 $stmt = $conn->prepare("
     DELETE FROM messages
     WHERE (sender_id = ? AND receiver_id = ?)
@@ -55,6 +59,7 @@ $stmt = $conn->prepare("
 $stmt->bind_param('iiii', $uid, $otherUserId, $otherUserId, $uid);
 
 if ($stmt->execute()) {
+    // Show how many rows were removed.
     $deleted = $stmt->affected_rows;
     setFlash('success', "Chat deleted ({$deleted} messages removed).");
 } else {

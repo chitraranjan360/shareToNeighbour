@@ -1,7 +1,13 @@
+<?php
+// Shared footer markup and client-side wiring for the public site.
+?>
+
 </main>
 
+<!-- Site-wide footer with navigation, support, and legal links. -->
 <footer class="footer-premium text-light py-5 mt-5" role="contentinfo" aria-label="Site footer">
   <div class="container">
+    <!-- Footer columns: brand, explore, support, and legal. -->
     <div class="row gy-4">
       <div class="col-md-4">
         <a href="<?= SITE_URL ?>" class="d-inline-flex align-items-center text-decoration-none text-light mb-2">
@@ -43,14 +49,21 @@
 
     <hr class="border-secondary opacity-25 my-4">
 
+    <!-- Bottom footer row with copyright and safety reminder. -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-center small text-muted">
       <div>&copy; <?= date('Y') ?> <?= SITE_NAME ?> — Copenhagen, Denmark</div>
       <div>Meet in public places. Never share passwords or OTPs.</div>
     </div>
   </div>
 </footer>
+
+<!-- Bootstrap bundle used by dropdowns, alerts, and other UI components. -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Shared site JavaScript bundle. -->
 <script src="<?= SITE_URL ?>/js/app.js"></script>
+
+<!-- Real-time presence, notification, and message badge handling. -->
 <script>
   (function() {
     const CURRENT_USER_ID = <?= isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0 ?>;
@@ -132,70 +145,18 @@
     };
   })();
 </script>
-<!--
-Chatbot floating button
--->
+<!-- Floating support chatbot shown only when the feature is enabled. -->
+
 <?php if (isUserLoggedIn() && defined('CHATBOT_ENABLED') && CHATBOT_ENABLED): ?>
-  <style>
-    #supportBotBtn {
-      position: fixed;
-      right: 18px;
-      bottom: 18px;
-      z-index: 9999;
-      border-radius: 999px;
-      padding: 10px 14px;
-    }
+  <!-- Chatbot styles loaded only when the widget is visible. -->
+  <link rel="stylesheet" href="<?= SITE_URL ?>/css/chatbot.css">
 
-    #supportBotBox {
-      position: fixed;
-      right: 18px;
-      bottom: 72px;
-      z-index: 9999;
-      width: 340px;
-      max-width: calc(100vw - 36px);
-      display: none;
-    }
-
-    #supportBotMsgs {
-      height: 260px;
-      overflow: auto;
-      background: #fff;
-    }
-
-    .support-msg {
-      padding: .4rem .6rem;
-      border-radius: .6rem;
-      margin: .35rem 0;
-      max-width: 90%;
-    }
-
-    .support-user {
-      background: #e9f7ef;
-      margin-left: auto;
-    }
-
-    .support-bot {
-      background: #f1f3f5;
-      margin-right: auto;
-    }
-
-    .support-msg p,
-    .support-msg ul,
-    .support-msg ol {
-      margin-bottom: .4rem;
-    }
-
-    .support-msg p:last-child,
-    .support-msg ul:last-child,
-    .support-msg ol:last-child {
-      margin-bottom: 0;
-    }
-  </style>
-
+  <!-- Toggle button that opens and closes the support bot panel. -->
   <button id="supportBotBtn" class="btn btn-success shadow">
     <i class="bi bi-chat-dots"></i> Help
   </button>
 
+  <!-- Chatbot container with message area and input controls. -->
   <div id="supportBotBox" class="card shadow">
     <div class="card-header py-2 d-flex justify-content-between align-items-center">
       <div class="fw-semibold small">Support Bot</div>
@@ -212,6 +173,7 @@ Chatbot floating button
     </div>
   </div>
 
+  <!-- Client-side support bot behavior and message rendering. -->
   <script>
     (function() {
       const btn = document.getElementById('supportBotBtn');

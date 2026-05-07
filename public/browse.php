@@ -6,6 +6,7 @@ $search    = trim($_GET['q'] ?? '');
 $category  = $_GET['category'] ?? '';
 $condition = $_GET['condition'] ?? '';
 
+// Check whether the visitor is logged in so distance filtering can work.
 $isLoggedIn = isUserLoggedIn();
 $uid = $isLoggedIn ? currentUserId() : null;
 
@@ -16,17 +17,19 @@ $uid = $isLoggedIn ? currentUserId() : null;
 $allowedRadius = [0, 1, 5, 10, 15, 20];
 $radiusKm = isset($_GET['radius_km']) ? (int)$_GET['radius_km'] : 0;
 if (!in_array($radiusKm, $allowedRadius, true)) {
+    // Ignore any radius value that is not in the allowed list.
     $radiusKm = 0;
 }
 
-// If guest tries to use distance filter, redirect to login
+// Guests must log in before using the distance filter.
 if (!$isLoggedIn && $radiusKm > 0) {
     redirect(SITE_URL . '/login.php?next=' . urlencode($_SERVER['REQUEST_URI']));
 }
 
-// Load user location (ONLY if saved)
+// Load the user's saved location so we can calculate nearby items.
 $userLat = $userLng = null;
 if ($isLoggedIn) {
+    // Read latitude and longitude from the logged-in user's profile.
     $stmt = $conn->prepare("SELECT latitude, longitude FROM users WHERE id = ? LIMIT 1");
     $stmt->bind_param('i', $uid);
     $stmt->execute();
@@ -40,14 +43,15 @@ if ($isLoggedIn) {
 }
 
 /**
- * Build SQL
- * - Guests: status filter, no distance
- * - Logged in with location: distance available
+ * Build the search query.
+ * Guests see the normal listing order, while logged-in users with a saved
+ * location can also sort and filter by distance.
  */
 $params = [];
 $types  = '';
 
 if ($isLoggedIn && $userLat !== null && $userLng !== null) {
+    // Add a distance column so nearby items can be sorted and filtered.
     $sql = "
 SELECT fi.*, u.username,
 (6371 * acos(
@@ -65,6 +69,7 @@ WHERE fi.is_deleted = 0 AND
     $params = [$userLat, $userLng, $userLat, $uid];
     $types  = 'dddi';
 } else {
+    // Fall back to a simpler query when distance cannot be calculated.
     $sql = "
 SELECT fi.*, u.username, NULL AS distance_km
 FROM furniture_items fi
@@ -74,7 +79,7 @@ WHERE fi.is_deleted = 0 AND
 ";
 }
 
-// Filters
+// Apply text search to title and description.
 if ($search !== '') {
     $sql .= " AND (fi.title LIKE ? OR fi.description LIKE ?)";
     $like = '%' . $search . '%';
@@ -83,26 +88,28 @@ if ($search !== '') {
     $types .= 'ss';
 }
 
+// Apply category filter only when the value is one of the allowed categories.
 if ($category !== '' && in_array($category, ['sofa', 'table', 'chair', 'bed', 'shelf', 'desk', 'wardrobe', 'other'], true)) {
     $sql .= " AND fi.category = ?";
     $params[] = $category;
     $types .= 's';
 }
 
+// Apply condition filter only when the value is one of the allowed states.
 if ($condition !== '' && in_array($condition, ['like_new', 'good', 'fair', 'needs_repair'], true)) {
     $sql .= " AND fi.condition_level = ?";
     $params[] = $condition;
     $types .= 's';
 }
 
-// Radius filter only if distance is available and selected
+// Only filter by radius when distance data is available.
 if ($radiusKm > 0 && $userLat !== null && $userLng !== null) {
     $sql .= " HAVING distance_km <= ?";
     $params[] = (float)$radiusKm;
     $types .= 'd';
 }
 
-// Sorting
+// Sort by distance when the distance filter is active; otherwise use newest first.
 if ($userLat !== null && $userLng !== null && $radiusKm > 0) {
     $sql .= " ORDER BY distance_km ASC";
 } else {
@@ -112,13 +119,16 @@ if ($userLat !== null && $userLng !== null && $radiusKm > 0) {
 $stmt = $conn->prepare($sql);
 
 if (!empty($params)) {
+    // Bind the collected filter values into the query.
     $stmt->bind_param($types, ...$params);
 }
 
+// Run the query and load all matching items.
 $stmt->execute();
 $items = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
+// Turn a distance number into the text shown above the slider.
 function radiusLabel(int $v): string {
     return match ($v) {
         0 => 'All items',
@@ -136,12 +146,13 @@ function radiusLabel(int $v): string {
 
 <?php if ($isLoggedIn && ($userLat === null || $userLng === null)): ?>
     <div class="alert alert-info">
+        <!-- Tell users why distance features are unavailable. -->
         Set your address in <a class="alert-link" href="<?= SITE_URL ?>/edit_profile.php">Edit Profile</a>
         to see accurate distance and use distance filter.
     </div>
 <?php endif; ?>
 
-<!-- FILTERS -->
+<!-- Search and filter form. -->
 <form id="browseFiltersForm" method="GET" class="card shadow-sm p-3 mb-4">
     <div class="row g-2 align-items-end">
         <div class="col-md-3">
@@ -172,6 +183,7 @@ function radiusLabel(int $v): string {
 
         <div class="col-md-3 border rounded-3 p-3">
             <?php if ($isLoggedIn): ?>
+                <!-- Slider is only useful when the user has a saved location. -->
                 <label for="radius_km" class="form-label small d-flex justify-content-between">
                     <span><i class="bi bi-geo-alt"></i> Distance</span>
                     <strong id="radiusLabel"><?= h(radiusLabel($radiusKm)) ?></strong>
@@ -194,6 +206,7 @@ function radiusLabel(int $v): string {
                 </div>
             <?php else: ?>
                 <div class="mt-4">
+                    <!-- Guests are asked to log in before using distance search. -->
                     <a href="<?= SITE_URL ?>/login.php?next=<?= urlencode($_SERVER['REQUEST_URI']) ?>"
                        class="text-decoration-none text-muted">
                         <i class="bi bi-geo-alt"></i> Distance filter (login required)
@@ -210,20 +223,24 @@ function radiusLabel(int $v): string {
     </div>
 
     <?php if ($isLoggedIn): ?>
+        <!-- Store the current radius so JavaScript can keep the slider in sync. -->
         <input type="hidden" id="radius_km_hidden_value" value="<?= (int)$radiusKm ?>">
     <?php endif; ?>
 </form>
 
+<!-- Show how many items matched the filters. -->
 <p class="text-muted"><?= count($items) ?> item(s) found</p>
 
 <div class="row g-4">
     <?php if (empty($items)): ?>
         <div class="col-12 text-center py-5">
+            <!-- Empty state when no items match the current filters. -->
             <i class="bi bi-inbox display-1 text-muted"></i>
             <p class="text-muted mt-3">No furniture found.</p>
         </div>
     <?php else: foreach ($items as $item): ?>
         <div class="col-md-4 col-lg-3">
+            <!-- Each card links to the full item details page. -->
             <a href="<?= SITE_URL ?>/item.php?id=<?= (int)$item['id'] ?>" class="text-decoration-none text-dark">
                 <div class="card h-100 shadow-sm item-card rounded-4 border-0">
                     <img
@@ -235,6 +252,7 @@ function radiusLabel(int $v): string {
 
                     <div class="card-body d-flex flex-column">
                         <div class="d-flex gap-1 mb-2 flex-wrap">
+                            <!-- Category, condition, and status badges help users scan items quickly. -->
                             <span class="badge bg-success"><?= h(ucfirst($item['category'])) ?></span>
                             <span class="badge bg-secondary"><?= h(ucfirst(str_replace('_', ' ', $item['condition_level']))) ?></span>
 

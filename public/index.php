@@ -8,6 +8,7 @@ $pendingReview = null;
 if (isUserLoggedIn()) {
     $uid = currentUserId();
 
+    // Find any furniture item the user requested that was accepted and taken but not yet reviewed
     $stmt = $conn->prepare("
         SELECT
             r.id AS request_id,
@@ -31,6 +32,7 @@ if (isUserLoggedIn()) {
     $pendingReview = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
+    // Trigger review modal if user has an unreviewed transaction
     $forceReview = !empty($pendingReview);
 }
 
@@ -39,6 +41,7 @@ $userLat = $userLng = null;
 
 if (isUserLoggedIn()) {
     $uid = currentUserId();
+    // Retrieve user's saved latitude and longitude from profile
     $stmt = $conn->prepare("SELECT latitude, longitude FROM users WHERE id = ? LIMIT 1");
     $stmt->bind_param('i', $uid);
     $stmt->execute();
@@ -53,6 +56,9 @@ if (isUserLoggedIn()) {
 if ($userLat !== null && $userLng !== null) {
     $uid = currentUserId();
 
+    // Fetch items within 1 km radius using haversine formula to calculate distance
+    // Only show items from other users (not own listings)
+    // Status can be 'available', 'requested', or 'taken'
     $stmt = $conn->prepare("
     SELECT
         fi.*,
@@ -76,7 +82,7 @@ if ($userLat !== null && $userLng !== null) {
 ");
     $stmt->bind_param('dddi', $userLat, $userLng, $userLat, $uid);
 } else {
-    // Fallback: not logged in OR no location saved yet
+    // Fallback: show all items if not logged in or no location saved yet
     $stmt = $conn->prepare("
         SELECT fi.*, u.username, NULL AS distance_km
         FROM furniture_items fi
@@ -192,6 +198,7 @@ $stmt->close();
             </p>
         <?php else: ?>
             <?php foreach ($latest as $item):
+                // Assign badge color based on item status
                 $status = $item['status'] ?? 'available';
                 $statusClass = match ($status) {
                     'available' => 'bg-primary',
@@ -216,6 +223,7 @@ $stmt->close();
                                     <span class="badge bg-primary">
                                         <i class="bi bi-geo-alt"></i>
                                         <?php
+                                        // Show distance in meters if less than 1 km, otherwise show in km with 1 decimal
                                         $km = (float)$item['distance_km'];
                                         if ($km < 1) {
                                             echo (int)round($km * 1000) . " m";
@@ -325,6 +333,7 @@ $stmt->close();
     </div>
 
     <script>
+        // Auto-show review modal when page loads if user has pending review
         document.addEventListener('DOMContentLoaded', () => {
             const modalEl = document.getElementById('reviewModal');
             if (!modalEl) return;

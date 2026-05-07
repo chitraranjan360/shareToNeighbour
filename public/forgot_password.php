@@ -9,6 +9,7 @@ if (isUserLoggedIn()) {
 
 $errors = [];
 
+// Generate CSRF token once for the page
 if (empty($_SESSION['csrf_forgot_token'])) {
   $_SESSION['csrf_forgot_token'] = bin2hex(random_bytes(32));
 }
@@ -18,8 +19,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   $genericMsg = "we sent a password reset link. Please check your inbox (and spam folder).";
 
-  if (!hash_equals($_SESSION['csrf_forgot_token'], $_POST['csrf_forgot_token'] ?? '')) {
+  $postedToken = $_POST['csrf_forgot_token'] ?? '';
+  $sessionToken = $_SESSION['csrf_forgot_token'] ?? '';
+  
+  if (!hash_equals($sessionToken, $postedToken)) {
     $errors[] = 'Security check failed.';
+    error_log("CSRF mismatch - Session: " . substr($sessionToken, 0, 8) . "... Posted: " . substr($postedToken, 0, 8) . "...");
   } elseif ($email === '') {
     $errors[] = 'Email is required.';
   } else {
@@ -56,8 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     }
 
+    // Regenerate token AFTER successful submission but before redirect
     $_SESSION['csrf_forgot_token'] = bin2hex(random_bytes(32));
-
     setFlash('success', $genericMsg);
     redirect(SITE_URL . '/login.php');
   }

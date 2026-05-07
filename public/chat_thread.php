@@ -1,4 +1,5 @@
 <?php
+// Private chat page for one-to-one messaging.
 $pageTitle = 'Chat — ShareToNeighbour';
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/auth.php';
@@ -7,6 +8,7 @@ require_once __DIR__ . '/../includes/mailer.php';
 requireUserLogin();
 $uid = currentUserId();
 
+// Current signed-in user id.
 $otherUserId = (int)($_GET['user'] ?? 0);
 if ($otherUserId <= 0 || $otherUserId === $uid) {
     setFlash('error', 'Invalid chat user.');
@@ -16,6 +18,7 @@ if ($otherUserId <= 0 || $otherUserId === $uid) {
 $stmt = $conn->prepare("SELECT id, username, full_name, is_online, last_seen FROM users WHERE id = ? LIMIT 1");
 $stmt->bind_param('i', $otherUserId);
 $stmt->execute();
+// Load the other user's public profile data.
 $otherUser = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
@@ -26,12 +29,12 @@ if (!$otherUser) {
 
 $errors = [];
 
-// Send new message
+// Handle a new message submission.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $body = trim($_POST['body'] ?? '');
     $subject = 'Chat Message';
 
-    //validation for message count
+    // Prevent empty messages and very long messages.
     if ($body === '') {
         $errors[] = 'Message cannot be empty.';
     } elseif (strlen($body) > 2000) {
@@ -39,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
+        // Save the chat message in the messages table.
         $stmt = $conn->prepare("
             INSERT INTO messages (sender_id, receiver_id, item_id, subject, body, is_read)
             VALUES (?, ?, NULL, ?, ?, 0)
@@ -49,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $messageId = (int)$stmt->insert_id;
             $stmt->close();
 
-            // Notify only if receiver is NOT active in this exact thread in last 30 seconds
+            // Only notify if the receiver is not actively viewing this chat.
             $shouldNotify = true;
             $presenceStmt = $conn->prepare("
                 SELECT 1
@@ -70,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($shouldNotify) {
+                // Create an in-app notification for the receiver.
                 $nType  = 'message';
                 $nRefId = $messageId;
                 $nTitle = 'New message';
@@ -86,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
+            // Store data for the WebSocket notification flow.
             $_SESSION['ws_notify'] = [
                 'to' => $otherUserId,
                 'from' => $uid,
@@ -94,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'body' => $body
             ];
 
-            //  email notification reagarding new message if user are offline
+            // Send an email alert when the receiver is not actively in this chat.
             $senderInfo = getUserInfo($conn, $uid);
             $receiverInfo = getUserInfo($conn, $otherUserId);
             if ($senderInfo && $receiverInfo && $shouldNotify) {
@@ -117,13 +123,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// mark incoming as read
+// Mark messages from the other user as read.
 $stmt = $conn->prepare("UPDATE messages SET is_read = 1 WHERE sender_id = ? AND receiver_id = ? AND is_read = 0");
 $stmt->bind_param('ii', $otherUserId, $uid);
 $stmt->execute();
 $stmt->close();
 
-// load chat history
+// Load the full conversation history in order.
 $stmt = $conn->prepare("
     SELECT id, sender_id, receiver_id, body, is_read, created_at
     FROM messages

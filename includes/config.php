@@ -1,36 +1,42 @@
 <?php
 /**
- * ShareToNeighbour — Configuration
- * Auto-detects SITE_URL so links never break
+ * ShareToNeighbour configuration bootstrap.
+ *
+ * This file defines constants, opens the database connection, starts the
+ * session, and provides helper functions shared across the project.
  */
 
+// Switch between local development settings and production settings.
 define('ENVIRONMENT', 'development');
 
 if (ENVIRONMENT === 'development') {
+    // Local XAMPP database credentials.
     define('DB_HOST', 'localhost');
     define('DB_USER', 'root');
     define('DB_PASS', '');
     define('DB_NAME', 'sharetoneighbour');
 } else {
+    // Production database credentials.
     define('DB_HOST', 'localhost');
     define('DB_USER', 'id12345678_admin');
     define('DB_PASS', 'YourPassword');
     define('DB_NAME', 'id12345678_sharetoneighbour');
 }
 
-// ── Auto-detect base URL (FIXES broken links) ──
+// Detect the request protocol, host, and script path so links work from any folder.
 $protocol   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host       = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $scriptPath = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
 
-// Find the project root from any subfolder
+// Find the project root from any subfolder.
 if (preg_match('#(.*?/ShareToNeighbour)#i', $scriptPath, $m)) {
     $projectRoot = $m[1];
 } else {
-    // If project is placed at htdocs root without the folder name
+    // Fallback when the project is placed directly inside htdocs.
     $projectRoot = '';
 }
 
+// Shared application constants used throughout views and redirects.
 define('SITE_NAME',    'ShareToNeighbour');
 define('BASE_URL',     $protocol . '://' . $host . $projectRoot);
 define('SITE_URL',     BASE_URL . '/public');
@@ -41,18 +47,18 @@ define('UPLOAD_URL',   BASE_URL . '/uploads');
 define('MAX_IMG_WIDTH',  800);
 define('MAX_IMG_HEIGHT', 600);
 
-//Ollama Api
+// Chatbot integration settings.
 define('CHATBOT_ENABLED', true);
 define('OLLAMA_URL', 'http://127.0.0.1:11434');
 //define('OLLAMA_MODEL', 'llama3.1:8b');
 define('OLLAMA_MODEL', 'llama3.2:3b'); //lestest model
 
-// ── Session ──
+// Start the session once so flash messages, CSRF tokens, and login state work.
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// ── Database ──
+// Shared MySQL connection used by the application.
 $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 if ($conn->connect_error) {
     die('<div style="color:red;padding:20px;font-family:Arial;">
@@ -61,20 +67,23 @@ if ($conn->connect_error) {
 }
 $conn->set_charset('utf8mb4');
 
-// ── Helper functions ──
+// Escape output for safe HTML rendering.
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+// Redirect the browser and stop script execution.
 function redirect(string $url): void {
     header("Location: $url");
     exit;
 }
 
+// Save a one-time flash message in the session.
 function setFlash(string $key, string $msg): void {
     $_SESSION['flash'][$key] = $msg;
 }
 
+// Read and clear a flash message from the session.
 function getFlash(string $key): ?string {
     if (isset($_SESSION['flash'][$key])) {
         $msg = $_SESSION['flash'][$key];
@@ -83,10 +92,10 @@ function getFlash(string $key): ?string {
     }
     return null;
 }
-//for email notifications
+// Email notifications are enabled by default for user alerts.
 define('EMAIL_ENABLED', true); // set false to disable emails quickly
 
-// SMTP settings (RECOMMENDED: use SendGrid/Brevo/Mailgun; Gmail also works with App Password)
+// SMTP settings used by the PHPMailer wrapper.
 define('SMTP_HOST', 'smtp.gmail.com');
 define('SMTP_PORT', 587);
 define('SMTP_USER', 'sharetoneighbour360@gmail.com');  // change this
@@ -94,6 +103,7 @@ define('SMTP_PASS', 'yzoi fnfr ljbt rgrr');             // change this
 define('SMTP_FROM_EMAIL', 'sharetoneighbour.alerts@gmail.com');
 define('SMTP_FROM_NAME', 'ShareToNeighbour Alerts');
 
+// Fetch the main profile fields for a user by ID.
 function getUserInfo(mysqli $conn, int $userId): ?array {
     $stmt = $conn->prepare("SELECT id, email, full_name, username, email_notifications FROM users WHERE id = ? LIMIT 1");
     $stmt->bind_param('i', $userId);
@@ -112,7 +122,7 @@ function getUserInfo(mysqli $conn, int $userId): ?array {
     ];
 }
 
-// Checks if given lat/lng is within Denmark using OpenStreetMap Nominatim API 
+// Check whether the given coordinates resolve to Denmark.
 function isLatLngInDenmark(float $lat, float $lng): bool
 {
     $url = "https://nominatim.openstreetmap.org/reverse?format=json&lat=" . urlencode((string)$lat) . "&lon=" . urlencode((string)$lng) . "&zoom=18&addressdetails=1";
@@ -133,6 +143,7 @@ function isLatLngInDenmark(float $lat, float $lng): bool
     return $cc === 'dk';
 }
 
+// Render star icons for a rating average.
 function renderStars($avg) {
     if ($avg === null) return '';
     $full = (int)floor($avg);
@@ -146,7 +157,7 @@ function renderStars($avg) {
     return $html;
 }
 
-// Haversine formula to calculate distance between two lat/lng points
+// Calculate the distance in kilometers between two latitude/longitude points.
 function haversineKm($lat1, $lon1, $lat2, $lon2) {
     $R = 6371; // km
     $dLat = deg2rad($lat2 - $lat1);

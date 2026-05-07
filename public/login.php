@@ -21,36 +21,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_SPECIAL_CHARS) ?? '';
   $password = $_POST['password'] ?? '';
 
+  // Verify CSRF token matches - prevents cross-site request forgery attacks
   if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'] ?? '')) {
     $errors[] = 'Security check failed.';
+  // Check if user has exceeded maximum login attempts (brute force protection)
   } else if ($_SESSION['login_attempts'] >= 5) {
     $errors[] = 'Too many login attempts. Please try again later.';
   } else {
 
+    // Query database for user by username or email
     $stmt = $conn->prepare("SELECT id, username, password_hash FROM users WHERE username = ? OR email = ?");
     $stmt->bind_param('ss', $username, $username);
     $stmt->execute();
     $user = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
+    // If no user found, increment failed attempt counter
     if (!$user) {
       $errors[] = 'Invalid username or email.';
       $_SESSION['login_attempts']++;
     } else {
+      // Verify password against the hashed password_hash stored in database
       if (!password_verify($password, $user['password_hash'])) {
         $errors[] = 'Incorrect password.';
         $_SESSION['login_attempts']++;
       } else {
-        // Reset login attempts on successful login
+        // Password verified successfully - clear failed attempt counter
         $_SESSION['login_attempts'] = 0;
 
+        // Store user info in session for authenticated state
         $_SESSION['user_id']   = $user['id'];
         $_SESSION['username']  = $user['username'];
         $_SESSION['user_type'] = 'user';
 
         setFlash('success', 'Welcome back, ' . $user['username'] . '!');
 
-        // Redirect back to the page they wanted
+        // Redirect to intended page if set, otherwise go to homepage
         $go = $_SESSION['redirect_after_login'] ?? SITE_URL . '/index.php';
         unset($_SESSION['redirect_after_login']);
         redirect($go);
@@ -88,6 +94,7 @@ require_once __DIR__ . '/../includes/header.php';
               <div class="pt-1"><i class="bi bi-exclamation-triangle-fill"></i></div>
               <div class="flex-grow-1">
                 <div class="fw-semibold mb-1">Login failed</div>
+                <!-- Display remaining login attempts to warn user of rate limiting -->
                 <div><?php echo max(0, 5 - ($_SESSION['login_attempts'] ?? 0)); ?> attempts remaining</div>
                 <ul class="mb-0">
                   <?php foreach ($errors as $e): ?><li><?= h($e) ?></li><?php endforeach; ?>

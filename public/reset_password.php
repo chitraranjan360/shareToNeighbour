@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $stmt = $conn->prepare("
                     UPDATE users
-                    SET password = ?,
+                    SET password_hash = ?,
                         reset_token_hash = NULL,
                         reset_token_expires_at = NULL
                     WHERE id = ?

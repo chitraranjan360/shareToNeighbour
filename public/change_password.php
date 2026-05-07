@@ -34,20 +34,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
-        $stmt = $conn->prepare('SELECT password FROM users WHERE id = ? LIMIT 1');
+        $stmt = $conn->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
         $stmt->bind_param('i', $uid);
         $stmt->execute();
         $row = $stmt->get_result()->fetch_assoc();
         $stmt->close();
 
-        if (!$row || !password_verify($oldPassword, $row['password'])) {
+        if (!$row || !password_verify($oldPassword, $row['password_hash'])) {
             $errors[] = 'Old password is incorrect.';
-        } elseif (password_verify($newPassword, $row['password'])) {
+        } elseif (password_verify($newPassword, $row['password_hash'])) {
             $errors[] = 'New password must be different from old password.';
         } else {
             $newHash = password_hash($newPassword, PASSWORD_BCRYPT);
 
-            $stmt = $conn->prepare('UPDATE users SET password = ?, reset_token_hash = NULL, reset_token_expires_at = NULL WHERE id = ?');
+            $stmt = $conn->prepare('UPDATE users SET password_hash = ?, reset_token_hash = NULL, reset_token_expires_at = NULL WHERE id = ?');
             $stmt->bind_param('si', $newHash, $uid);
             $ok = $stmt->execute();
             $stmt->close();
